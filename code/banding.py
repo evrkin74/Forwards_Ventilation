@@ -13,7 +13,7 @@ import numpy as np
 from scipy.stats import linregress
 import datetime
 import pandas as pd
-import plots_spatial as pltspat
+
 # Add SouthernDemons library to PATH
 sys.path.append(os.path.abspath("../lib/"))
 from teos_ten import teos_sigma0
@@ -45,7 +45,7 @@ df_ini = dd.read_parquet(out_dir + f"/df_ini.combined.parquet")
 #df_vent = dd.read_parquet(out_dir + f"/df_vent.parquet")
 ds_domain = open_domain_cfg( datadir=grid_path, files = grid_files )
 
-print(df_ini.dtypes) 
+#print(df_ini.dtypes) 
 
 def plot_depth(ax,df): # plot seeding depth & volume in density class, integrated around longitudes
     cmp =cmocean.cm.thermal 
@@ -76,6 +76,9 @@ def plot_depth(ax,df): # plot seeding depth & volume in density class, integrate
 
 # df_ini['binnedy_i'] = df_ini['y'].round()
 # df_ini['bin_depth_i'] = df_ini['z'].round()
+
+
+########### USE from code used to generate df_vent
 xmin, xmax = imindom, imaxdom
 ymin, ymax = jmindom, jmaxdom
 zmin, zmax = kmindom, kmaxdom
@@ -93,15 +96,34 @@ ycent = np.linspace(ymin, ymax, num=ymax-ymin+1, dtype=int)
 zcent = np.linspace(zmin, zmax, num=zmax-zmin+1, dtype=int)
 df_ini["binnedy_i"] = df_ini["y"].map_partitions(pd.cut, xbins, labels=xcent, retbins=False).astype(int)
 df_ini["bin_depth_i"] = df_ini["z"].map_partitions(pd.cut, xbins, labels=xcent, retbins=False).astype(int)
-print(df_ini[['binnedy_i','y']].head(20))
-#print(df_ini.dtypes)
-#df_ini['binnedx_i'] = 
+
+
+df_column = df_ini[df_ini['binnedy_i']==200][['subvol','bin_depth_i']]
+df_group = df_column.groupby(['bin_depth_i'])
+vol = df_group.sum()['subvol'].compute()
+vol = vol.reset_index()
+vol = vol.sort_values('bin_depth_i')
+vol = vol.reset_index()
+
+plt.plot(vol.bin_depth_i,vol.subvol)
+plt.savefig('../fig/banding_crossec.png')
+
+# print(df_ini[['binnedy_i','y']].head(20))
+# #print(df_ini.dtypes)
+# #df_ini['binnedx_i'] = 
 
 
 
-fig,ax = plt.subplots(1,1)
-plot_depth(ax,df_ini)
-ax.tick_params(axis='x', which='both', labelbottom=True)
-ax.tick_params(axis='both', which='major', labelsize=20)
-ax.invert_yaxis()
-plt.savefig('/home/users/zhenya/Ventilation_Project/fig/banding.png')
+# fig,ax = plt.subplots(1,1)
+# plot_depth(ax,df_ini)
+# ax.tick_params(axis='x', which='both', labelbottom=True)
+# ax.tick_params(axis='both', which='major', labelsize=20)
+# ax.invert_yaxis()
+# plt.savefig('/home/users/zhenya/Ventilation_Project/fig/banding.png')
+
+
+
+
+### snoop around df_ini
+# df_towrite = (df_ini.tail(500))
+# df_towrite.to_csv('test.csv')
