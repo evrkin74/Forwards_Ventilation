@@ -12,7 +12,15 @@ import cartopy.crs as ccrs
 import cmocean
 import numpy as np
 from matplotlib.colors import Normalize
+from matplotlib.colors import Normalize, LogNorm
 
+from scipy.stats import linregress
+import datetime
+import pandas as pd
+# Add SouthernDemons library to PATH
+sys.path.append(os.path.abspath("../lib/"))
+from teos_ten import teos_sigma0
+import datesandtime
 # from scipy.stats import linregress
 # import datetime
 # import pandas as pd
@@ -147,15 +155,6 @@ from matplotlib.colors import Normalize
 # plt.savefig(f'../fig/presfeb/combined_ASC.png')
 
 
-import os
-import sys
-import matplotlib.pyplot as plt
-import dask.dataframe as dd
-import xarray as xr
-import cartopy.crs as ccrs
-import cmocean
-from matplotlib.colors import Normalize, LogNorm
-
 # Load Data
 data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation")
 df_vent = dd.read_parquet(data_dir + "/df_vent.parquet")
@@ -188,7 +187,6 @@ def plot_i(ax, ds_domain, vol_xy, y, vmax=None, vmin=None, log=True, cmp=cmocean
     
     norm = LogNorm(vmin=vmin, vmax=vmax) if log else Normalize(vmin=vmin, vmax=vmax)
     cax = ax.pcolormesh(lon, lat, da_vol_xy, transform=ccrs.PlateCarree(), cmap=cmp, norm=norm)
-    
     ax.coastlines()
     
     return cax
@@ -196,7 +194,7 @@ def plot_i(ax, ds_domain, vol_xy, y, vmax=None, vmin=None, log=True, cmp=cmocean
 
 def plot_o(ax, ds_domain, vol_xy, y, vmax=None, vmin=None, log=True, cmp=cmocean.cm.matter):
     da_vol_xy = vol_xy.to_xarray()[y]
-    da_vol_xy = da_vol_xy.assign_coords({'x_c': da_vol_xy.binnedx_i - 1, 'y_c': da_vol_xy.binnedy_i - 1})
+    da_vol_xy = da_vol_xy.assign_coords({'x_c': da_vol_xy.binnedx_o - 1, 'y_c': da_vol_xy.binnedy_o - 1})
     da_vol_xy = da_vol_xy.swap_dims({'binnedx_o': 'x_c', 'binnedy_o': 'y_c'})
     da_vol_xy = da_vol_xy.transpose("y_c", "x_c", ...)
     ds_domain_allign, da_vol_xy = xr.align(ds_domain, da_vol_xy)
@@ -213,23 +211,148 @@ def plot_o(ax, ds_domain, vol_xy, y, vmax=None, vmin=None, log=True, cmp=cmocean
     ax.coastlines()
     
     return cax
+##############
+#figure all:
+# df_int = df_vent[(df_vent['weddel_bool'] == 1)]
+# print(len(df_int))
+# #print(len(move))
+# fig, axes = plt.subplots(1, 1, figsize=(12, 6), dpi=600, subplot_kw={'projection': ccrs.SouthPolarStereo()})
 
-# Create Figure
-years = [1987,1992,1997, 2002]
-fig, axes = plt.subplots(1, len(years), figsize=(12, 6), dpi=600, subplot_kw={'projection': ccrs.SouthPolarStereo()})
 
 
-for i, year in enumerate(years):
-    df_gyre_int_copy = df_gyre_int[df_gyre_int['year_o'] < year + 1]
-    df_group = df_gyre_int_copy.groupby(['binnedx_i', 'binnedy_i']).sum(['subvol_i']).compute()
+# df_group = df_int[['binnedx_i', 'binnedy_i','subvol_i']].groupby(['binnedx_i', 'binnedy_i']).sum(['subvol_i']).compute()
+
+# cax = plot_i(axes, ds_domain, df_group, 'subvol_i', vmax=1e11, vmin=1e9)
+
     
-    cax = plot_i(axes[i], ds_domain, df_group, 'subvol_i', vmax=1e11, vmin=1e9)
-    axes[i].set_title(f"Year: {year}", fontsize=12)
-    
-# Colorbar & Layout
-cbar = fig.colorbar(cax, ax=axes, orientation='horizontal', fraction=.05)
-cbar.set_label("Subvolume Transport (m³)")
-#fig.subplots_adjust(wspace=2)
+# # Colorbar & Layout
+# cbar = fig.colorbar(cax)
+# cbar.set_label("Subvolume Transport (m³)")
+# #fig.subplots_adjust(wspace=2)
 
-plt.savefig('../fig/presfeb/late_ASC.png', bbox_inches='tight')
-plt.show()
+# plt.savefig('../fig/presfeb/gyre_pathways.png', bbox_inches='tight')
+# plt.show()
+
+
+
+
+######################
+# Create Figure - year evolution
+
+# years = [1987,1992,1997, 2002]
+# fig, axes = plt.subplots(1, len(years), figsize=(12, 6), dpi=600, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+
+
+# for i, year in enumerate(years):
+#     df_gyre_int_copy = df_gyre_int[df_gyre_int['year_o'] < year + 1]
+#     df_group = df_gyre_int_copy.groupby(['binnedx_i', 'binnedy_i']).sum(['subvol_i']).compute()
+    
+#     cax = plot_i(axes[i], ds_domain, df_group, 'subvol_i', vmax=1e11, vmin=1e9)
+#     axes[i].set_title(f"Year: {year}", fontsize=12)
+    
+# # Colorbar & Layout
+# cbar = fig.colorbar(cax, ax=axes, orientation='horizontal', fraction=.05)
+# cbar.set_label("Subvolume Transport (m³)")
+# #fig.subplots_adjust(wspace=2)
+
+# plt.savefig('../fig/presfeb/late_ASC.png', bbox_inches='tight')
+# plt.show()
+
+#############
+#LOOK AT the location of ventilation (as a function of time)
+
+# df_gyre_out = move[['year_o','binnedx_o','binnedy_o','subvol_o']]
+# years = [1987,1992,1997, 2002]
+
+# fig, axes = plt.subplots(1, len(years), figsize=(12, 6), dpi=600, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+
+
+# for i, year in enumerate(years):
+#     df_gyre_out_copy = df_gyre_out[df_gyre_int['year_o'] < year + 1]
+#     df_group = df_gyre_out_copy.groupby(['binnedx_o', 'binnedy_o']).sum(['subvol_o']).compute()
+    
+#     cax = plot_o(axes[i], ds_domain, df_group, 'subvol_o', vmax=1e11, vmin=1e9)
+#     axes[i].set_title(f"<Year: {year}", fontsize=12)
+    
+# # Colorbar & Layout
+# cbar = fig.colorbar(cax, ax=axes, orientation='horizontal', fraction=0.05, pad=0.02)
+# cbar.set_label("Subvolume Transport (m³)")
+# #fig.subplots_adjust(wspace=2)
+
+# plt.savefig('../fig/presfeb/late_ventilation_ASC.png', bbox_inches='tight')
+# plt.show()
+
+
+
+
+
+
+###########
+
+
+
+
+# PLOT temporal evolution of ventilation and density, depth
+
+# df = move[['year_o','month_o','subvol_o']]
+# #df['year'] = datesandtime.sec_to_datetime_365day(df['time'],year0=1982, month0=12, day0=16)
+# df_group = df.groupby(['year_o','month_o'])
+# vol = df_group.sum()["subvol_o"].compute()
+
+# vol = vol.reset_index()
+# vol['date'] = pd.to_datetime( dict(year=vol.year_o, month=vol.month_o, day=1))
+# vol = vol.sort_values('date')
+# vol = vol.reset_index()
+# fig = plt.figure(figsize=(15,5))
+# plt.plot(vol['date'],vol.subvol_o)
+# plt.ylabel('volume_out')
+# plt.savefig('../fig/Gyre/move-temporal.png')
+
+# df = move[['year_o','month_o','density_o']]
+# #df['year'] = datesandtime.sec_to_datetime_365day(df['time'],year0=1982, month0=12, day0=16)
+# df_group = df.groupby(['year_o','month_o'])
+# vol = df_group.mean()["density_o"].compute()
+
+# vol = vol.reset_index()
+# vol['date'] = pd.to_datetime( dict(year=vol.year_o, month=vol.month_o, day=1))
+# vol = vol.sort_values('date')
+# vol = vol.reset_index()
+# fig = plt.figure(figsize=(15,5))
+# plt.plot(vol['date'],vol.density_o)
+# plt.ylabel('avg_dens_out')
+# plt.savefig('../fig/Gyre/move-temporal-density.png')
+
+# df = move[['year_o','month_o','z_i']]
+# #df['year'] = datesandtime.sec_to_datetime_365day(df['time'],year0=1982, month0=12, day0=16)
+# df_group = df.groupby(['year_o','month_o'])
+# vol = df_group.mean()["z_i"].compute()
+
+# vol = vol.reset_index()
+# vol['date'] = pd.to_datetime( dict(year=vol.year_o, month=vol.month_o, day=1))
+# vol = vol.sort_values('date')
+# vol = vol.reset_index()
+# fig = plt.figure(figsize=(15,5))
+# plt.plot(vol['date'],vol.z_i)
+# plt.ylabel('avg_dens_out')
+# plt.savefig('../fig/Gyre/move-temporal-depth.png')
+
+
+
+
+######
+#try to look at volume of each density transported into gyre:
+
+df_gyre_out = move[['year_o','subvol_o','ndense']]
+df_group = df_gyre_out.groupby(['ndense'])
+vol = df_group.sum()["subvol_o"].compute()
+vol = vol.reset_index()
+vol = vol.sort_values('ndense')
+vol = vol[vol['ndense']>1000]
+vol = vol.reset_index()
+
+plt.scatter(vol.ndense,vol.subvol_o)
+#plt.ylim(0,6e13)
+
+plt.savefig('../fig/Gyre/vols_densities_neut.png', bbox_inches='tight')
+# plt.show()
+
