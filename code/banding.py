@@ -26,10 +26,12 @@ jmaxdom = 400
 kmindom = 1
 kmaxdom = 75
 
-# Location of the TRACMASS run
-data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd/")
+# BWD
+# data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_bwd/")
+# out_dir = os.path.abspath(data_dir + "/OUTPUT.ORCA025/")
 
-# Location of the OUTPUT directory created when running SouthernDemons executable
+#FWD
+data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd/")
 out_dir = os.path.abspath(data_dir + "/OUTPUT.ORCA025_fwd/")
 
 # Location of masks and grid information for the model
@@ -94,8 +96,10 @@ zbins[0], zbins[-1] = -float("inf"), float("inf")
 xcent = np.linspace(xmin, xmax, num=xmax-xmin+1, dtype=int)
 ycent = np.linspace(ymin, ymax, num=ymax-ymin+1, dtype=int)
 zcent = np.linspace(zmin, zmax, num=zmax-zmin+1, dtype=int)
-df_ini["binnedy_i"] = df_ini["y"].map_partitions(pd.cut, xbins, labels=xcent, retbins=False).astype(int)
-df_ini["bin_depth_i"] = df_ini["z"].map_partitions(pd.cut, xbins, labels=xcent, retbins=False).astype(int)
+
+df_ini["binnedx_i"] = df_ini["x"].map_partitions(pd.cut, xbins, labels=xcent, retbins=False).astype(int)
+df_ini["binnedy_i"] = df_ini["y"].map_partitions(pd.cut, ybins, labels=ycent, retbins=False).astype(int)
+df_ini["bin_depth_i"] = df_ini["z"].map_partitions(pd.cut, zbins, labels=zcent, retbins=False).astype(int)
 
 
 df_column = df_ini[df_ini['binnedy_i']==200][['subvol','bin_depth_i']]
@@ -106,24 +110,41 @@ vol = vol.sort_values('bin_depth_i')
 vol = vol.reset_index()
 
 plt.plot(vol.bin_depth_i,vol.subvol)
-plt.savefig('../fig/banding_crossec.png')
+plt.title('zonally integrated at binnedy_i = 200')
+plt.xlabel('depth_bin')
+plt.ylabel('volume')
+plt.savefig('../fig/banding/fwd_banding_crossec.png')
 
 # print(df_ini[['binnedy_i','y']].head(20))
 # #print(df_ini.dtypes)
 # #df_ini['binnedx_i'] = 
 
 
+fig,ax = plt.subplots(1,1)
+plot_depth(ax,df_ini)
+ax.tick_params(axis='x', which='both', labelbottom=True)
+ax.tick_params(axis='both', which='major', labelsize=20)
+ax.invert_yaxis()
+plt.title('Zonally integrated')
+plt.xlabel('binnedy_i')
+plt.ylabel('depth bin')
+plt.savefig('../fig/banding/fwd_banding.png')
 
-# fig,ax = plt.subplots(1,1)
-# plot_depth(ax,df_ini)
-# ax.tick_params(axis='x', which='both', labelbottom=True)
-# ax.tick_params(axis='both', which='major', labelsize=20)
-# ax.invert_yaxis()
-# plt.savefig('/home/users/zhenya/Ventilation_Project/fig/banding.png')
+
+df_interest = df_ini[df_ini['binnedx_i']==100]
+fig,ax = plt.subplots(1,1)
+plot_depth(ax,df_interest)
+ax.tick_params(axis='x', which='both', labelbottom=True)
+ax.tick_params(axis='both', which='major', labelsize=20)
+ax.invert_yaxis()
+plt.title('Slice at binnedx_i = 100')
+plt.xlabel('binnedy_i')
+plt.ylabel('depth bin')
+plt.savefig('../fig/banding/fwd_banding_slice.png')
 
 
 
 
-### snoop around df_ini
+# ## snoop around df_ini
 # df_towrite = (df_ini.tail(500))
 # df_towrite.to_csv('test.csv')

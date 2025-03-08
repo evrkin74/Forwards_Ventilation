@@ -342,17 +342,33 @@ def plot_o(ax, ds_domain, vol_xy, y, vmax=None, vmin=None, log=True, cmp=cmocean
 ######
 #try to look at volume of each density transported into gyre:
 
-df_gyre_out = move[['year_o','subvol_o','ndense']]
-df_group = df_gyre_out.groupby(['ndense'])
-vol = df_group.sum()["subvol_o"].compute()
-vol = vol.reset_index()
-vol = vol.sort_values('ndense')
-vol = vol[vol['ndense']>1000]
-vol = vol.reset_index()
+# df_gyre_out = move[['year_o','subvol_o','ndense']]
+# df_group = df_gyre_out.groupby(['ndense'])
+# vol = df_group.sum()["subvol_o"].compute()
+# vol = vol.reset_index()
+# vol = vol.sort_values('ndense')
+# vol = vol[vol['ndense']>1000]
+# vol = vol.reset_index()
 
-plt.scatter(vol.ndense,vol.subvol_o)
-#plt.ylim(0,6e13)
+# plt.scatter(vol.ndense,vol.subvol_o)
+# #plt.ylim(0,6e13)
 
-plt.savefig('../fig/Gyre/vols_densities_neut.png', bbox_inches='tight')
+# plt.savefig('../fig/Gyre/vols_densities_neut.png', bbox_inches='tight')
 # plt.show()
 
+
+df_out = df_vent[['year_o','month_o','subvol_o','ndense','density_o']]
+df_out = df_out[(df_out['year_o'] == 1982)|((df_out['year_o'] == 1983)&(df_out['month_o'] <8))]  #early
+#df_out = df_out[(df_out['year_o'] > 1983)|((df_out['year_o'] == 1983)&(df_out['month_o'] >7))]    # - early
+df_group = df_out.groupby(['density_o'])
+vol = df_group.sum()["subvol_o"].compute()
+vol = vol.reset_index()
+vol = vol.sort_values('density_o')
+#vol = vol[vol['ndense']>1000]
+vol = vol.reset_index()
+
+plt.scatter(vol.density_o,vol.subvol_o)
+#plt.ylim(0,6e13)
+
+plt.savefig('../fig/Densities/early_vols_densities_o.png', bbox_inches='tight')
+plt.show()
