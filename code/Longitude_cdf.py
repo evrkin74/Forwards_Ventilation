@@ -30,12 +30,12 @@ kmaxdom = 75
 
 #FWD
 # Location of the TRACMASS run
-data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd/")
-out_dir = os.path.abspath(data_dir + "/OUTPUT.ORCA025_fwd/")
+# data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd/")
+# out_dir = os.path.abspath(data_dir + "/OUTPUT.ORCA025_fwd/")
 
 #BWD
-# data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_bwd/")
-# out_dir = os.path.abspath(data_dir + "/OUTPUT.ORCA025/")
+data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_bwd")
+out_dir = os.path.abspath(data_dir + "/OUTPUT.ORCA025_revised/")
 
 
 
@@ -75,4 +75,4 @@ plt.plot(vol.long,vol.subvol_cdf,linewidth=1)
 plt.title(f"Total Volume {(vol['subvol_o'].sum()/1e16):.1f} x 10$^{{16}}$",fontsize=16)
 plt.xlabel('Longitude',fontsize=16)
 plt.ylabel('Cumulative Volume Fraction',fontsize=16)
-plt.savefig('../fig/FWD_Longitude_cdf.png')
+plt.savefig('../fig/BWD_Longitude_cdf.png')
