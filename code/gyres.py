@@ -53,6 +53,13 @@ ndense_path = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/SouthernDemons/neut
 ds_nd = xr.open_mfdataset(ndense_path, chunks='auto')
 nd_coord = ds_nd.sigma_ver.values
 
+
+
+
+
+
+
+
 def nd_bin_to_density( x ):
     # If x == -1 -> No density surface intersects the fluid column. Retain value of -1
     if x < 0:
@@ -192,23 +199,23 @@ print('densities')
 '''
 
 #######
-df = df_vent_in_gyre[['ndense','density_o']]
-df=df[df['ndense']>1000]
-df_group= df.groupby('ndense')
-dens = df_group.mean('density_o').compute()
+# df = df_vent_in_gyre[['ndense','density_o']]
+# df=df[df['ndense']>1000]
+# df_group= df.groupby('ndense')
+# dens = df_group.mean('density_o').compute()
 
-dens = dens.reset_index()
-dens=dens.sort_values('ndense')
+# dens = dens.reset_index()
+# dens=dens.sort_values('ndense')
 
-fig,ax = plt.subplots(1,1)
-plt.plot(dens['ndense'],1000+dens['density_o'],c='red')
-plt.plot([1026.3,1027.7],[1026.3,1027.7],ls='--')
-plt.xlabel('neut density')
-plt.ylabel('density out')
+# fig,ax = plt.subplots(1,1)
+# plt.plot(dens['ndense'],1000+dens['density_o'],c='red')
+# plt.plot([1026.3,1027.7],[1026.3,1027.7],ls='--')
+# plt.xlabel('neut density')
+# plt.ylabel('density out')
 
-ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%.2f'))
+# ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%.2f'))
 
-# Get current ticks and remove every second one
-xticks = ax.get_xticks()
-ax.set_xticks(xticks[::2])  # Keep every second tick
-plt.savefig('../fig/gyres_ventilated.png')
+# # Get current ticks and remove every second one
+# xticks = ax.get_xticks()
+# ax.set_xticks(xticks[::2])  # Keep every second tick
+# plt.savefig('../fig/gyres_ventilated.png')

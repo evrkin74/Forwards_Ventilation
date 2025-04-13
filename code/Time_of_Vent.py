@@ -15,21 +15,19 @@ import numpy as np
 from scipy.stats import linregress
 import datetime
 import pandas as pd
+
 # Add SouthernDemons library to PATH
 sys.path.append(os.path.abspath("../lib/"))
 sys.path.append(os.path.abspath("../fig/"))
+import plots_custom as plt_cust
 from teos_ten import teos_sigma0
 import datesandtime
 import time
+from dask.distributed import Client, LocalCluster
 
 
 
-import dask
 
-dask.config.set(scheduler='threads')  # Use threaded scheduler
-dask.config.set(num_workers=40)  # Set number of workers to 8
-
-print(f"Number of workers set: {dask.config.get('num_workers')}")
 
 # Subdomain information (As inputted into TRACMASS, note non-pythonic indexing)
 imindom = 1
@@ -45,8 +43,12 @@ kmaxdom = 75
 #FWD
 data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation")
 out_dir = os.path.abspath(data_dir + "/OUTPUT.ORCA025_fwd/")
-#BWD
-# data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_bwd/OUTPUT.ORCA025/")
+
+
+# BWD
+# data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_bwd")
+# out_dir = os.path.abspath(data_dir + "/OUTPUT.ORCA025_revised/")
+
 
 
 #ndense_path = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/SouthernDemons/neutraldensity/output/ORCA025_Dec1982/*.nc" )
@@ -154,6 +156,56 @@ col = ['red','green','yellow']
 
 
 
+#############
+'''
+Create frame by frame snapshots at every month of ventilation volumes
+start of with just in month
+then repeat for cumulative
+'''
+
+
+def make_frame(df,vmin,vmax):   #df should be filtered
+    fig, ax = plt.subplots(1,2,dpi=300,subplot_kw={'projection':ccrs.SouthPolarStereo()},figsize = (12,4))
+    fig.subplots_adjust(top=0.85)
+    cbar = plt_cust.plot_i(fig,ax[0], ds_domain, df[['binnedx_i','binnedy_i','subvol_i']], 'subvol_i',vmin=vmin,vmax=vmax)
+    cbar.set_label('Volume ventilated ($m^3$)')
+    cbar1 = plt_cust.plot_o(fig,ax[1], ds_domain, df[['binnedx_o','binnedy_o','subvol_o']], 'subvol_o',vmin=vmin,vmax=vmax)
+    cbar1.set_label('Volume ventilated ($m^3$)')
+
+    ax[0].set_title('Location of Seeding')
+    ax[1].set_title('Location of Ventilation')
+    return fig
+
+
+
+if __name__ == '__main__':
+    print('yay')
+    cluster = LocalCluster(n_workers=8, threads_per_worker=1)
+    client = Client(cluster)
+    for year in range(1989,1990):
+        for month in range(12):
+
+            #df_yr = df_vent[(df_vent['year_o']==year)&(df_vent['month_o']==month+1)]
+            df_yr= df_vent[(df_vent['year_o']==year)&(df_vent['month_o']==month+1)]
+            fig = make_frame(df_yr,1e9,1e11)
+            fig.suptitle(f'{year}_{cal_months[month]}')
+            plt.savefig(f'../fig/Time_of_Vent/time_movies/sequential/{year}_{month}.png',bbox_inches = 'tight')
+            print(year, month)
+    client.close()
+    cluster.close()
+
+# for year in range(1983,1990):
+    
+
+#     df_yr = df_vent[(df_vent['year_o']==year)]
+#     fig = make_frame(df_yr,5e9,5e11)
+#     fig.suptitle(f'{year}')
+#     plt.savefig(f'../fig/Time_of_Vent/time_movies/cumulative/year/{year}.png',bbox_inches = 'tight')
+#     print(year)
+
+
+
+
 
 #####################################
 
@@ -163,12 +215,12 @@ col = ['red','green','yellow']
 ##SEED location
 
 
-df = df_vent[['binnedx_i', 'binnedy_i', 'subvol_o', 'year_o','month_o']]
-df['age_bool'] = 1  # Dask allows direct column assignment
+# df = df_vent[['binnedx_i', 'binnedy_i', 'subvol_o', 'year_o','month_o']]
+# df['age_bool'] = 1  # Dask allows direct column assignment
 
-#FWD
-df['age_bool'] = df['age_bool'].mask(((df['year_o'] == 1982))|((df['year_o'] == 1983)&(df['month_o'] <8)), -1)
-df['weight_age_bool'] = df['age_bool']*df['subvol_o']
+# #FWD
+# df['age_bool'] = df['age_bool'].mask(((df['year_o'] == 1982))|((df['year_o'] == 1983)&(df['month_o'] <8)), -1)
+# df['weight_age_bool'] = df['age_bool']*df['subvol_o']
 
 #BWD
 # df['age_bool'] = df['age_bool'].mask((df['year_o'] == 2012)&(df['month_o'] >8), -1)
@@ -211,12 +263,12 @@ df['weight_age_bool'] = df['age_bool']*df['subvol_o']
 
 
 
-df = df_vent[['binnedx_o', 'binnedy_o', 'subvol_o', 'year_o','month_o']]
-df['age_bool'] = 1  # Dask allows direct column assignment
+# df = df_vent[['binnedx_o', 'binnedy_o', 'subvol_o', 'year_o','month_o']]
+# df['age_bool'] = 1  # Dask allows direct column assignment
 
-#FWD
-df['age_bool'] = df['age_bool'].mask(((df['year_o'] == 1982))|((df['year_o'] == 1983)&(df['month_o'] <8)), -1)
-df['weight_age_bool'] = df['age_bool']*df['subvol_o']
+# #FWD
+# df['age_bool'] = df['age_bool'].mask(((df['year_o'] == 1982))|((df['year_o'] == 1983)&(df['month_o'] <8)), -1)
+# df['weight_age_bool'] = df['age_bool']*df['subvol_o']
 
 #BWD
 # df['age_bool'] = df['age_bool'].mask((df['year_o'] == 2012)&(df['month_o'] >8), -1)
@@ -232,7 +284,8 @@ df['weight_age_bool'] = df['age_bool']*df['subvol_o']
 #         cmap(np.linspace(minval, maxval, n)))
 #     return new_cmap
 
-# for year in [1985, 1990, 1995, 2000, 2005, 2010]:
+# for i,year in enumerate(np.flip(np.arange(1984,2013,1))):
+#     print(year)
 #     df_filt = df[df['year_o'] < year]
 #     df_group = df_filt.groupby(['binnedx_o', 'binnedy_o'])
 #     vol_xy = df_group.sum("weight_age_bool").compute()
@@ -246,12 +299,14 @@ df['weight_age_bool'] = df['age_bool']*df['subvol_o']
 #     # Align the coordinates of the grid file with the subdomain in da_vol_xy
 #     ds_domain_allign, da_vol_xy = xr.align(ds_domain, da_vol_xy)
 
-#     fig, ax = plt.subplots(1, 1, dpi=300, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+#     fig, ax = plt.subplots(1, 1, dpi=600, subplot_kw={'projection': ccrs.SouthPolarStereo()})
 #     lat = ds_domain_allign.gphit
 #     lon = ds_domain_allign.glamt
 
-#     vmax = da_vol_xy.max().compute()
-#     vmin = da_vol_xy.min().compute()
+#     #need colours from 2013 
+#     if i==0:
+#         vmax = da_vol_xy.max().compute()*0.5
+#         vmin = da_vol_xy.min().compute()*0.5
 
 #     # Normalize the colorbar with truncation
 #     val = np.maximum(np.abs(vmin),np.abs(vmax))
@@ -266,8 +321,9 @@ df['weight_age_bool'] = df['age_bool']*df['subvol_o']
 #     cbar.set_label(r"SUM( Volume Ventilated * Age_bool) ($m^3$)", fontsize=16)
 
 #     # Save the plot
-#     plt.savefig(f'/home/users/zhenya/Forwards_Ventilation/fig/Time_of_Vent/param_SUM/{year}VENTage_bool.png', dpi=600)
-
+#     plt.title(f'Before {year} (exclusive)')
+#     plt.savefig(f'/home/users/zhenya/Forwards_Ventilation/fig/Time_of_Vent/param_SUM/movie_all_yr_VENT/{year}.png', dpi=600)
+#     plt.show()
 
 ###################
 #plot the cumulative volume over years of early an late:
@@ -293,14 +349,27 @@ df['weight_age_bool'] = df['age_bool']*df['subvol_o']
 # vol_late=vol_late.sort_values('date')
 
 # vol_early['cumulative'] = vol_early['subvol_o'].cumsum()
-# vol_late['cumulative'] = vol_late['subvol_o'].cumsum()
+# #add 0 before the first month in vol_ealry['date]
+# vol_early = pd.concat([pd.DataFrame({'date': [pd.to_datetime('1982-11-01')], 'cumulative': [0]}), vol_early], ignore_index=True)
+# vol_early= pd.concat([vol_early,pd.DataFrame({'date':vol_late['date'],'cumulative':np.repeat(vol_early['cumulative'].iloc[-1],len(vol_late['date']))})],ignore_index=True)
 
-# plt.plot(vol_early['date'],vol_early['cumulative'])
+# vol_late['cumulative'] = vol_late['subvol_o'].cumsum()
+# vol_late = pd.concat([pd.DataFrame({'date': [pd.to_datetime('1983-06-01')], 'cumulative': [0]}), vol_late], ignore_index=True)
+
+
+# plt.plot(vol_early['date'],vol_early['cumulative'],c='blue',label='early')
+# plt.plot(vol_late['date'],vol_late['cumulative'],c='orange',label='late')
+# plt.plot()
 
 # import numpy as np
-# plt.plot(vol_late['date'], np.repeat(vol_early['cumulative'].iloc[-1], len(vol_late['date'])),c='blue')
-# plt.plot(vol_late['date'],vol_late['cumulative'])
 
+# plt.plot(vol_late['date'],vol_late['cumulative'],c='orange')
+
+# plt.ylabel('Cumulative Volume ventilated ($m^3$)')
+# plt.xlabel('Year')
+# plt.legend()
+# plt.xlim(pd.to_datetime('1982-11-01'),pd.to_datetime('2012-12-01'))
+# plt.ylim(0,3.9e16)
 # plt.savefig('../fig/Time_of_Vent/Cumulative_Volume.png')
 
 
@@ -417,175 +486,58 @@ in ASC 200,255
 '''
 look at transition when age param=0, ie time when vol_early=vol_late
 '''
+#Atempt to write a parallelised function, as .apply and .map_partitions are not working/ too slow
 
 
-# def find_neut_point(lon_ind, lat_ind):
-#     """
-#     Find the neutral point where the cumulative volume of late data surpasses the cumulative volume of early data.
-
-#     Parameters:
-#     lon_ind (int): Longitude index.
-#     lat_ind (int): Latitude index.
-
-#     Returns:
-#     datetime or NaN: The date when the cumulative volume of late data surpasses the cumulative volume of early data, or NaN if not found.
-#     """
-
-    
-#     df_point = df_vent[(df_vent['binnedx_i'] == lon_ind) & (df_vent['binnedy_i'] == lat_ind)]
-
-#     early_condition = (df_point['year_o'] == 1982) | ((df_point['year_o'] == 1983) & (df_point['month_o'] < 8))
-
-#     df_early = df_point[early_condition]
-#     df_late = df_point[~early_condition]
-#     vol_early = df_early.subvol_o.sum().persist()
-
-#     group_late = df_late[['year_o', 'month_o', 'subvol_o']].groupby(['year_o', 'month_o']).sum().reset_index().persist()
-#     group_late['date'] = pd.to_datetime(dict(year=group_late.year_o, month=group_late.month_o, day=1))
-#     group_late = group_late.sort_values('date')
-#     group_late['subvol_o'] = group_late['subvol_o'].fillna(0)
-#     group_late['cumulative'] = group_late['subvol_o'].cumsum()
-
-#     try:
-        
-        
-#         time_param= group_late['date'][(np.where((group_late['cumulative'] - vol_early) > 0)[0])]
-#         print('nice')
-#         return time_param
-       
-#     except IndexError:
-#         print(lon_ind, lat_ind)
-#         return np.nan
-    
-# # ddf = df_vent[['binnedx_i', 'binnedy_i']].drop_duplicates()
-# # #improve the line below
-
-# # ddf['neut_point'] = ddf.apply(lambda row: find_neut_point(row['binnedx_i'], row['binnedy_i']), meta=('neut_point', 'datetime64[ns]'), axis=1)
-
-# # ddf_computed = ddf.compute()
-
-# # # Save the result
-# # ddf_computed.to_parquet('../fig/Time_of_Vent/Age_param_at_point/Neut_points.parquet', index=False)
-
-
-
-
-# #want a new function to tell dask to run the find_neut_point function in parallel
-# def find_neut_point_dask(df):
-#     t1=time.time()
-#     """
-#     Find the neutral point where the cumulative volume of late data surpasses the cumulative volume of early data.
-
-#     Parameters:
-#     df (DataFrame): Dataframe containing the indices of the neutral points.
-
-#     Returns:
-#     DataFrame: Dataframe containing the indices of the neutral points and the corresponding dates.
-#     """
-
-#     df['neut_point'] = df.apply(lambda row: find_neut_point(row['binnedx_i'], row['binnedy_i']), axis=1)
-#     print(time.time()-t1)
-#     return df
-# ddf = df_vent[['binnedx_i', 'binnedy_i']].drop_duplicates()
-# print('start repartition')
-
-# #ddf = ddf.repartition(npartitions=3000)
-# print('end_repartition')
-# ddf=ddf.optimize()
-# ddf = ddf.map_partitions(find_neut_point_dask,meta={'binnedx_i': 'int64', 'binnedy_i': 'int64', 'neut_point': 'datetime64[ns]'})
-# ddf_computed = ddf.compute()
-# ddf_computed.to_parquet('../fig/Time_of_Vent/Age_param_at_point/Neut_points.parquet', index=False)
-
-
-
-
-# # Compute the result
-# ddf_computed = ddf.compute()
-
-# # Save the result
-# ddf_computed.to_parquet('../fig/Time_of_Vent/Age_param_at_point/Neut_points.parquet', index=False)
-
-# Apply the function using map_partitions and specify
-
-
-########
-#Atempt to write a parallelised function, as .appl and .map_partitions are not working
-# print(df_vent.columns)
 # def find_neut(df):
+#     # Define early vs late conditions
 #     early_condition = (df['year_o'] == 1982) | ((df['year_o'] == 1983) & (df['month_o'] < 8))
-
 #     df_early = df[early_condition]
-#     df_late = df[~early_condition]
-#     #need this to be a dask series, each xy has a single value
-#     vol_early = df_early[['binnedx_o','binnedy_o','subvol_o']].groupby(['binnedx_o','binnedy_o']).sum()['subvol_o'].reset_index()
-#     #rename subvol_o column to avoid confusion
-#     vol_early = vol_early.rename(columns={'subvol_o':'subvol_e'})
+#     df_late = df[~early_condition].copy()
     
+#     # Aggregate early volume per grid cell
+#     vol_early = (df_early[['binnedx_o', 'binnedy_o', 'subvol_o']]
+#                  .groupby(['binnedx_o', 'binnedy_o']).sum()['subvol_o']
+#                  .reset_index())
+#     vol_early = vol_early.rename(columns={'subvol_o': 'subvol_e'})
+    
+#     # In late data, create a date column
+#     df_late['date'] = pd.to_datetime(dict(year=df_late.year_o,
+#                                            month=df_late.month_o,
+#                                            day=1))
+#     # We want to get the cumulative subvol_o for each grid cell over time.
+#     df_late_agg = df_late[['binnedx_o', 'binnedy_o', 'date', 'subvol_o']]
+    
+#     # Function to sort by date and compute the cumulative sum for each group.
+#     def cum_func(g):
+#         g = g.sort_values('date')
+#         g['cum_subvol'] = g['subvol_o'].cumsum()
+#         return g
+    
+#     # Use groupby.apply to compute the cumulative sum for each grid cell.
+#     # (Make sure to pass meta—the empty version of df_late_agg with new column.)
+#     meta = df_late_agg.head(0)
+#     meta = meta.assign(cum_subvol=meta['subvol_o'])
+#     df_late_agg = df_late_agg.groupby(['binnedx_o', 'binnedy_o']).apply(cum_func, meta=meta).reset_index(drop=True)
+    
+#     # Merge the late cumulative data with the early volume.
+#     df_merge = df_late_agg.merge(vol_early, on=['binnedx_o', 'binnedy_o'], how='left')
+#     # Compute the parameter: cumulative late volume minus early volume.
+#     df_merge['param'] = df_merge['cum_subvol'] - df_merge['subvol_e']
+    
+#     # Keep only rows where param > 0.
+#     df_positive = df_merge[df_merge['param'] > 0]
+#     # For each grid cell, get the first date (minimum) when param > 0.
+#     agg_df = df_positive.groupby(['binnedx_o', 'binnedy_o']).agg({'date': 'min'}).reset_index()
+#     agg_df = agg_df.rename(columns={'date': 'neut_date'})
+#     return agg_df
 
-
-#     df_late['date']=pd.to_datetime( dict(year=df_late.year_o, month=df_late.month_o, day=1))
-#     df_late.groupby(['binnedx_o','binnedy_o','date']).sum()['subvol_o'].reset_index()
-#     #now want to broadcast vol_early across the samex,y in df_late, and ten calculate df_late['subvol_o']-vol_early['subvol_o']
-#     df_merge= df_late.merge(vol_early, on=['binnedx_o','binnedy_o'], how='left')
-#     df_merge['param'] = df_merge['subvol_o']-df_merge['subvol_e']
-#     df_positive=df_merge[df_merge['param']>0]
-#     #now bin by x,y and find the first date where the param is positive
-#     df_positive.groupby(['binnedx_o','binnedy_o']).min('date')
-#     return df_positive
-
-# #now just need to call function and store the output into a .parquet
-# df_neut_points= find_neut(df_vent).compute()
+# # Compute and save the result (just x, y, and neut_date)
+# df_neut_points = find_neut(df_vent[['binnedx_o','binnedy_o','year_o','month_o','subvol_o']]).compute()
 # df_neut_points.to_parquet('../fig/Time_of_Vent/Age_param_at_point/Neut_points.parquet', index=False)
 
+    
 
-def find_neut(df):
-    # Define early vs late conditions
-    early_condition = (df['year_o'] == 1982) | ((df['year_o'] == 1983) & (df['month_o'] < 8))
-    df_early = df[early_condition]
-    df_late = df[~early_condition].copy()
-    
-    # Aggregate early volume per grid cell
-    vol_early = (df_early[['binnedx_o', 'binnedy_o', 'subvol_o']]
-                 .groupby(['binnedx_o', 'binnedy_o']).sum()['subvol_o']
-                 .reset_index())
-    vol_early = vol_early.rename(columns={'subvol_o': 'subvol_e'})
-    
-    # In late data, create a date column
-    df_late['date'] = pd.to_datetime(dict(year=df_late.year_o,
-                                           month=df_late.month_o,
-                                           day=1))
-    # We want to get the cumulative subvol_o for each grid cell over time.
-    df_late_agg = df_late[['binnedx_o', 'binnedy_o', 'date', 'subvol_o']]
-    
-    # Function to sort by date and compute the cumulative sum for each group.
-    def cum_func(g):
-        g = g.sort_values('date')
-        g['cum_subvol'] = g['subvol_o'].cumsum()
-        return g
-    
-    # Use groupby.apply to compute the cumulative sum for each grid cell.
-    # (Make sure to pass meta—the empty version of df_late_agg with new column.)
-    meta = df_late_agg.head(0)
-    meta = meta.assign(cum_subvol=meta['subvol_o'])
-    df_late_agg = df_late_agg.groupby(['binnedx_o', 'binnedy_o']).apply(cum_func, meta=meta).reset_index(drop=True)
-    
-    # Merge the late cumulative data with the early volume.
-    df_merge = df_late_agg.merge(vol_early, on=['binnedx_o', 'binnedy_o'], how='left')
-    # Compute the parameter: cumulative late volume minus early volume.
-    df_merge['param'] = df_merge['cum_subvol'] - df_merge['subvol_e']
-    
-    # Keep only rows where param > 0.
-    df_positive = df_merge[df_merge['param'] > 0]
-    # For each grid cell, get the first date (minimum) when param > 0.
-    agg_df = df_positive.groupby(['binnedx_o', 'binnedy_o']).agg({'date': 'min'}).reset_index()
-    agg_df = agg_df.rename(columns={'date': 'neut_date'})
-    return agg_df
-
-# Compute and save the result (just x, y, and neut_date)
-df_neut_points = find_neut(df_vent[['binnedx_o','binnedy_o','year_o','month_o','subvol_o']]).compute()
-df_neut_points.to_parquet('../fig/Time_of_Vent/Age_param_at_point/Neut_points.parquet', index=False)
-
-    
 
 
 

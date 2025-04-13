@@ -52,27 +52,56 @@ def plot_o(ax, ds_domain, vol_xy, y, vmax=None, vmin=None, log=True, cmp=cmocean
     
     return cax
 
+# fig, ax = plt.subplots(1, 1, dpi=600, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+# # First group by binnedx_o, binnedy_o and date, then reset index and aggregate over date.
+# df_group = df[['binnedx_o', 'binnedy_o', 'neut_date']]\
+#     .groupby(['binnedx_o', 'binnedy_o', 'neut_date']).sum().reset_index().compute()
+# print(df_group.head())
+
+# # Aggregate over date so that each grid cell gets one unique value (e.g., mean across dates)
+# df_spatial = df_group.groupby(['binnedx_o', 'binnedy_o']).mean().reset_index()
+# df_spatial['neut_date_float'] = df_spatial['neut_date'].astype('int64') / 1e9
+# print(df_spatial.head())
+
+# # Plot using log=True so that LogNorm is used.
+# cax = plot_o(ax, ds_domain, df_spatial, 'neut_date_float', log=False)
+
+# # Define desired year ticks and convert them to epoch seconds (for Jan 1st of each year)
+# years = np.array([1980, 1985, 1990, 1995, 2000, 2005, 2010])
+# tick_positions = [datetime.datetime(year=int(y), month=1, day=1).timestamp() for y in years]
+
+# # Create the colorbar with these tick positions.
+# cbar = plt.colorbar(cax, ax=ax, orientation='horizontal', ticks=tick_positions)
+# # Set tick labels to be the corresponding years.
+# cbar.ax.set_xticklabels([str(int(y)) for y in years])
+
+# plt.savefig('../fig/Time_of_Vent/Age_param_at_point/TRYNeut_points_spatial.png')
+
+
+
+#try colour just based of year_o
+
+
 fig, ax = plt.subplots(1, 1, dpi=600, subplot_kw={'projection': ccrs.SouthPolarStereo()})
-# First group by binnedx_o, binnedy_o and date, then reset index and aggregate over date.
 df_group = df[['binnedx_o', 'binnedy_o', 'neut_date']]\
-    .groupby(['binnedx_o', 'binnedy_o', 'neut_date']).sum().reset_index().compute()
+  .groupby(['binnedx_o', 'binnedy_o', 'neut_date']).sum().reset_index().compute()
 print(df_group.head())
 
 # Aggregate over date so that each grid cell gets one unique value (e.g., mean across dates)
 df_spatial = df_group.groupby(['binnedx_o', 'binnedy_o']).mean().reset_index()
-df_spatial['neut_date_float'] = df_spatial['neut_date'].astype('int64') / 1e9
+#need to take the year from neut_date which is in datetime format
+df_spatial['year_o'] = df_spatial['neut_date'].dt.year
+
 print(df_spatial.head())
 
 # Plot using log=True so that LogNorm is used.
-cax = plot_o(ax, ds_domain, df_spatial, 'neut_date_float', log=False)
+
+cax = plot_o(ax, ds_domain, df_spatial, 'year_o', log=True,vmin=1983, vmax=1990)
 
 # Define desired year ticks and convert them to epoch seconds (for Jan 1st of each year)
-years = np.array([1980, 1985, 1990, 1995, 2000, 2005, 2010])
-tick_positions = [datetime.datetime(year=int(y), month=1, day=1).timestamp() for y in years]
 
-# Create the colorbar with these tick positions.
-cbar = plt.colorbar(cax, ax=ax, orientation='horizontal', ticks=tick_positions)
+cbar = plt.colorbar(cax, ax=ax)
 # Set tick labels to be the corresponding years.
-cbar.ax.set_xticklabels([str(int(y)) for y in years])
+#cbar.ax.set_xticklabels([str(int(y)) for y in years])
 
 plt.savefig('../fig/Time_of_Vent/Age_param_at_point/TRYNeut_points_spatial.png')
