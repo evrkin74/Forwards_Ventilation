@@ -104,16 +104,18 @@ def plot_i(fig,ax, ds_domain, df, y, vmax=None, vmin=None, log=True,sum_var = Tr
     # if vmin is None:
     #     vmin = da.nanmin(da_vol_xy).compute()
     computed_array = da_vol_xy.compute()
-    if da.isnan(computed_array).all():
-        print("All values in da_vol_xy are NaN.")
-        vmin, vmax = 1e9,1e11
-        return False
-    else:
-        vmin = da.nanmin(computed_array)
-        vmax = da.nanmax(computed_array)
+    if (vmin==None)&(vmax==None):
+        if da.isnan(computed_array).all():
+            print("All values in da_vol_xy are NaN.")
+            vmin, vmax = 1e9,1e11
+            return False
+        else:
+            vmin = da.nanmin(computed_array)
+            vmax = da.nanmax(computed_array)
     if log==True:
         norm = LogNorm(vmin=vmin, vmax=vmax) 
     else:
+        #print(vmin.compute(),vmax.compute())
         norm=Normalize(vmin=vmin, vmax=vmax)
 
 

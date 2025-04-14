@@ -932,7 +932,10 @@ def plot_box(type,df_vent,move_weddell,plot=True):
 
     return medians,centered_sfzint
 def plot_ASC_sfzint(type,df_vent,move_weddell):
-    xrange = shelf_type_ind[type]
+    try:
+        xrange = shelf_type_ind[type]
+    except KeyError:
+        xrange = [0,1440]
     df_vent = df_vent[['binnedx_i','binnedy_i','sf_zint']]
     df_vent = df_vent.drop_duplicates(subset=['binnedx_i', 'binnedy_i']).rename(
         columns={'binnedx_i': 'binnedx_o', 'binnedy_i': 'binnedy_o', 'sf_zint': 'sf_zint'}
@@ -941,7 +944,7 @@ def plot_ASC_sfzint(type,df_vent,move_weddell):
     move_weddell=move_weddell.drop(columns = ['sf_zint'])
     df_merge = move_weddell.merge(df_vent,on=['binnedx_o','binnedy_o'],how='left').persist()
     #df_merge = df_merge[(df_merge['binnedx_i']>0)&(df_merge['binnedx_i']<100)]
-    df_merge = df_merge[(df_merge['binnedy_i']<200)&(df_merge['binnedx_i']<400)]
+    #df_merge = df_merge[(df_merge['binnedy_i']<200)&(df_merge['binnedx_i']<400)]
     if type=='dense':
         df_merge=df_merge[df_merge['binnedy_i']<170]
 
@@ -977,7 +980,7 @@ def plot_ASC_sfzint(type,df_vent,move_weddell):
         volumes.append(df_int['subvol_o'].sum().compute())
 
     plt.tight_layout()
-    plt.savefig(f'../fig/Gyre/sfzint/{type}_ASC_sfzints')
+    plt.savefig(f'../fig/Gyre/sfzint/Move_Weddell_sfzints')
     #print(f'{type} _ VOLUMES = {volumes}')
     return volumes
 # fig,ax = plt.subplots(1,1,figsize=(8,6))
@@ -988,43 +991,51 @@ def plot_ASC_sfzint(type,df_vent,move_weddell):
 #     plt.plot(plot_ASC_sfzint(type,df_vent,move_weddell))
 # plt.savefig('../fig/Gyre/sfzint/volumes')
 
-
+#plot_ASC_sfzint('a',df_vent,move_weddell)
 #plot_box('a',df_vent,move_ross)
-
+'''
+Plot the global stramfunction
+'''
+df_sfz = df_vent.drop_duplicates(subset=['binnedx_i', 'binnedy_i'])
+fig,ax = plt.subplots(1,1,figsize=(10, 10), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+plt_cust.plot_i(fig,ax, ds_domain, df_sfz, 'sf_zint',vmin=-60,vmax=60,log=False,cmp = 'bwr')
+plt.savefig('../fig/SFZINT.png')
 
 '''
 Calculate depth vs sfzint parameter at each longitude bin (need bin to gather enough data)
 #require width y_loc of asc at each longitude
 '''
 #start by separating out the ASC
+def separate_ASC(move_weddell):
+    x_max=600
+    ASC = move_weddell[(move_weddell['binnedx_i']<x_max)]
+    #need y limit, find where cost is from ds_domain, then add 50 pixels
+    bathy =  ds_domain.mbathy.values[:398,0:x_max]
+    #now find the last 0 in each column
+    y_locs = np.zeros(x_max)
+    #need the first deviation from zero
+    for i in range(x_max):
+        column = bathy[:, i]
+        nonzero_indices = np.where(column != 0)[0]
+        if len(nonzero_indices) > 0:
+            y_locs[i] = nonzero_indices[0]
+        else:
+            y_locs[i] = 398 
 
-ASC = move_weddell[move_weddell['binnedx_i']<400]
-#need y limit, find where cost is from ds_domain, then add 50 pixels
-bathy =  ds_domain.mbathy.values[:398,0:350]
-#now find the last 0 in each column
-print(bathy)
-y_locs = np.zeros(350)
-#need the first deviation from zero
-for i in range(350):
-    column = bathy[:, i]
-    nonzero_indices = np.where(column != 0)[0]
-    if len(nonzero_indices) > 0:
-        y_locs[i] = nonzero_indices[0]
-    else:
-        y_locs[i] = 398 
-    
-    
-y_locs = y_locs + 50
-print(y_locs)
-#now make a df to merge onto asc
-df_y = pd.DataFrame({'binnedx_i': np.arange(350), 'y_locs': y_locs})
-ASC = ASC.merge(df_y, on='binnedx_i', how='left')
 
-ASC = ASC[ASC['binnedy_i']<ASC['y_locs']]
+    y_locs = y_locs + 50
+    #now make a df to merge onto asc
+    y_locs = np.where(y_locs<130,130,y_locs)
+    df_y = pd.DataFrame({'binnedx_i': np.arange(x_max), 'y_locs': y_locs})
+    ASC = ASC.merge(df_y, on='binnedx_i', how='left')
 
-# # fig,ax = plt.subplots(1,1,figsize=(10, 10), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
-# # plt_cust.plot_i(fig,ax, ds_domain, ASC, 'subvol_i')
-# # plt.savefig(f'../fig/Gyre/sfzint/ASC_isolated.png')
+    ASC = ASC[ASC['binnedy_i']<ASC['y_locs']]
+
+    return ASC
+# ASC = separate_ASC(move_weddell)
+# fig,ax = plt.subplots(1,1,figsize=(10, 10), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+# plt_cust.plot_i(fig,ax, ds_domain, ASC, 'subvol_i')
+# plt.savefig(f'../fig/Gyre/sfzint/NEW_ASC_isolated.png')
 
 # #in bins of width 25, find the gradient and intercept of line going through medians of each bin
 # xs = np.arange(0,340,10)
@@ -1069,23 +1080,79 @@ def pen(df_vent,move_weddell):
 
 
 
-xs = np.arange(0,340,10)
-ratios = np.zeros(len(xs))
+# xs = np.arange(0,340,10)
+# ratios = np.zeros(len(xs))
 
-for i,x in enumerate(xs):
-    print(x)
-    filt_ASC = ASC[(ASC['binnedx_i']>=x+1)&(ASC['binnedx_i']<x+11)]
-    ratios[i] = pen(df_vent,filt_ASC)
+# for i,x in enumerate(xs):
+#     print(x)
+#     filt_ASC = ASC[(ASC['binnedx_i']>=x+1)&(ASC['binnedx_i']<x+11)]
+#     ratios[i] = pen(df_vent,filt_ASC)
     
     
 
-fig = plt.figure()
-plt.plot(xs+5,ratios)
-plt.savefig(f'../fig/Gyre/sfzint/ASC_ratios.png')
+# fig = plt.figure()
+# plt.plot(xs+5,ratios)
+# plt.savefig(f'../fig/Gyre/sfzint/ASC_ratios.png')
 
 
     
+def calculate_gyre_areas(df_vent):
+    '''
+    calculate gyre areas of weddell and ross
+    '''
+    #df_vent = dd.read_parquet(data_dir + "/df_vent_both_gyres.parquet")
 
+
+    df_weddell = df_vent[df_vent['weddell_bool']==1]
+    df_ross = df_vent[df_vent['ross_bool']==1]
+    domain_areas = (ds_domain.e1t*ds_domain.e2t).squeeze().rename('area')
+    domain_areas=domain_areas.swap_dims({'x_c':'binnedx_o','y_c':'binnedy_o'})
+    print(domain_areas)
+    areas_df = domain_areas.to_dask_dataframe()
+
+    print(areas_df.head())
+    fig,ax = plt.subplots(1,2,figsize=(10, 10), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+    for i,gyre in enumerate([df_weddell,df_ross]):
+        
+
+        gyre = gyre.drop_duplicates(subset=['binnedx_o','binnedy_o'])
+        
+        print(gyre.head())
+        merge_area=gyre.merge(areas_df,on=['binnedx_o','binnedy_o'],how = 'left')
+        #print(merge_area[['binnedx_i','binnedy_i','area']].head())
+        tot_area = merge_area.area.sum().compute()
+        print(tot_area)
+        #also plot the extent
+        ax[i].set_title(f'{tot_area:.2e}')
+        plt_cust.plot_o(fig,ax[i], ds_domain, gyre, 'subvol_o')
+        
+    plt.savefig('../fig/Gyre/gyre_extents.png')
+
+
+def vol_in_df(move_weddell):
+    ASC=move_weddell
+    cumulative_vols = np.zeros(len(range(1982,2013)))
+    for i,year in enumerate(range(1982,2013)):
+        df = ASC[ASC['year_o']<=year]
+        cumulative_vols[i]=df.subvol_o.sum().compute()
+    return cumulative_vols
+
+
+
+# fig,ax = plt.subplots(1,1,sharex=True,sharey=True,figsize = (15,8) )
+# ASC = separate_ASC(move_weddell)
+# vol_ASC = vol_in_df(ASC)
+# ax.plot(range(1982,2013),vol_in_df(move_weddell)-vol_ASC, label = 'ACC+ Volume')
+# ax.plot(range(1982,2013),vol_ASC,label = 'ASC Volume')
+
+# plt.legend()
+# plt.savefig('../fig/Gyre/ASC_VOLUME.png')
+
+
+
+'''
+Look at density of trajectories that remain in weddell
+'''
 
 
 
