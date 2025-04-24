@@ -178,21 +178,21 @@ def make_frame(df,vmin,vmax):   #df should be filtered
 
 
 
-if __name__ == '__main__':
-    print('yay')
-    cluster = LocalCluster(n_workers=8, threads_per_worker=1)
-    client = Client(cluster)
-    for year in range(1989,1990):
-        for month in range(12):
+# if __name__ == '__main__':
+#     print('yay')
+#     cluster = LocalCluster(n_workers=8, threads_per_worker=1)
+#     client = Client(cluster)
+#     for year in range(1989,1990):
+#         for month in range(12):
 
-            #df_yr = df_vent[(df_vent['year_o']==year)&(df_vent['month_o']==month+1)]
-            df_yr= df_vent[(df_vent['year_o']==year)&(df_vent['month_o']==month+1)]
-            fig = make_frame(df_yr,1e9,1e11)
-            fig.suptitle(f'{year}_{cal_months[month]}')
-            plt.savefig(f'../fig/Time_of_Vent/time_movies/sequential/{year}_{month}.png',bbox_inches = 'tight')
-            print(year, month)
-    client.close()
-    cluster.close()
+#             #df_yr = df_vent[(df_vent['year_o']==year)&(df_vent['month_o']==month+1)]
+#             df_yr= df_vent[(df_vent['year_o']==year)&(df_vent['month_o']==month+1)]
+#             fig = make_frame(df_yr,1e9,1e11)
+#             fig.suptitle(f'{year}_{cal_months[month]}')
+#             plt.savefig(f'../fig/Time_of_Vent/time_movies/sequential/{year}_{month}.png',bbox_inches = 'tight')
+#             print(year, month)
+#     client.close()
+#     cluster.close()
 
 # for year in range(1983,1990):
     
@@ -590,6 +590,55 @@ look at transition when age param=0, ie time when vol_early=vol_late
 # cbar=fig.colorbar(cax)
 # cbar.set_label(r"volume ventilated ($m^3/m^2$)")
 # plt.savefig('/home/users/zhenya/Forwards_Ventilation/fig/Time_of_Vent/SEEDAprMay_vent.png',dpi=300)
+from scipy.optimize import curve_fit
 
+def normalise_timeseries(df_vent):
+    df = df_vent[['year_o', 'month_o', 'subvol_o']]
+    df_group = df.groupby(['year_o'])
+    vol = df_group.sum()["subvol_o"].compute()
+
+    vol = vol.reset_index()
+    vol = vol.sort_values('year_o')
+    vol = vol.reset_index()
+
+    # Power law: y = a * (x)^b
+    def power_law(x, a, b):
+        return a * np.power(x, b)
+
+
+    xdata = vol['year_o'].values[2:] - 1982 + 1
+    ydata = vol['subvol_o'].values[2:]
+
+    # Initial guess: a as the first y value, b as a small negative exponent
+    p0 = [ydata[0], -0.1]
+    popt, pcov = curve_fit(power_law, xdata, ydata, p0=p0)
+    print("Fitted parameters: a = {:.3e}, b = {:.3e}".format(*popt))
+
+    # Plot the data and fitted power law curve 
+    plt.figure(figsize=(8, 5))
+    plt.scatter(xdata, ydata, label='Data', color='blue')
+    x_fit = np.linspace(xdata.min(), xdata.max(), 100)
+    plt.plot(xdata, power_law(xdata, *popt), 'r-', label='Power Law Fit')
+    plt.xlabel('Year offset (year - 1982 + 1)')
+    plt.ylabel('subvol_o')
+    plt.legend()
+    plt.savefig('../fig/powerlaw_fit.png')
+
+    df_normal = pd.DataFrame({'year_o': xdata + 1982 - 1, 'norm_fact': power_law(xdata, *popt)})
+    return df_normal
+
+    #now fit an exponential decay
+    
+
+df_norm=normalise_timeseries(df_vent)
+df_merge = df_vent.merge(df_norm, on='year_o', how='left')
+df_merge['norm_subvol'] = df_merge['subvol_o'] / df_merge['norm_fact']
+df_merge=df_merge.drop(columns=['subvol_o'])
+df_merge=df_merge.rename(columns={'norm_subvol':'subvol_o'})
+import combined_analysis as cmb_an
+fig,ax = plt.subplots(3,1,dpi=300,figsize=(16,10))
+cmb_an.timseries_by_basin(df_merge,save=False,fig=fig,ax=ax)
+plt.savefig('../fig/Time_of_Vent/basin_normalised_timeseries.png')
+#plot timeseries
 
 

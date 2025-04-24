@@ -31,25 +31,25 @@ jmaxdom = 400
 kmindom = 1
 kmaxdom = 75
 
-# data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/afstyles/ORCA025_fwd/")
-# out_dir = os.path.abspath(data_dir + "/OUTPUT.ORCA025_fwd_extra/")
-# df_vent = dd.read_parquet(out_dir + "/df_vent_both_gyres.parquet")
+data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd")
+out_dir = os.path.abspath(data_dir + "/OUTPUT.ORCA025_newindex/")
+df_vent = dd.read_parquet(out_dir + "/df_vent.parquet")
 
-data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation")
-df_vent = dd.read_parquet(data_dir + "/df_vent_both_gyres.parquet")
+print(df_vent.dtypes)
 #drop all the binned columns
 try:
-    df_vent = df_vent.drop('binnedx_o',axis=1)
-    df_vent = df_vent.drop('binnedy_o',axis=1)
-    df_vent = df_vent.drop('binnedz_o',axis=1)
-    df_vent = df_vent.drop('binnedx_i',axis=1)
-    df_vent = df_vent.drop('binnedy_i',axis=1)
-    df_vent = df_vent.drop('binnedz_i',axis=1)
+    # df_vent = df_vent.drop('binnedx_o',axis=1)
+    # df_vent = df_vent.drop('binnedy_o',axis=1)
+    # df_vent = df_vent.drop('binnedz_o',axis=1)
+    # df_vent = df_vent.drop('binnedx_i',axis=1)
+    # df_vent = df_vent.drop('binnedy_i',axis=1)
+    # df_vent = df_vent.drop('binnedz_i',axis=1)
     df_vent = df_vent.drop('weddel_bool',axis=1)
     df_vent = df_vent.drop('ross_bool',axis=1)
 except KeyError:
     print("columns already dropped")
 
+print(df_vent.dtypes)
 grid_path = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd/topo")
 grid_files = ['mask.nc', 'mesh_hgr.nc', 'mesh_zgr.nc']
 ds_domain = open_domain_cfg(datadir=grid_path, files=grid_files)
@@ -167,7 +167,7 @@ def add_depths(df,ds_domain):
 def add_weddel_gyre_to_df(df):
     df_gyre = df[(df['sf_zint']<200) & (df['sf_zint']>10)]
 
-    df_ross_gyre = df_gyre[(df_gyre['binnedx_i']>900)|(df_gyre['binnedx_i']<50)]
+    df_ross_gyre = df_gyre[(df_gyre['binnedx_i']>900)]
     print(df_ross_gyre.dtypes)
     df_group = df_ross_gyre[['binnedx_i','binnedy_i','subvol_i']].groupby(['binnedx_i','binnedy_i'])
     df_gyre_copy = df_group.max('subvol_i').compute()
@@ -205,15 +205,15 @@ def add_ROSS_gyre_to_df (df):
 
 
 if __name__ == '__main__':
-    cluster = LocalCluster(n_workers=8, threads_per_worker=1)
+    cluster = LocalCluster(n_workers=1, threads_per_worker=1)
     client = Client(cluster)
     print(client)
+    print(df_vent.dtypes)
 
-
-    df_vent1 = rebin(df_vent)
-    print('rebin')
-    print(df_vent1.dtypes)
-    df_vent2 = use_ndense_bins(df_vent1)
+    #df_vent1 = rebin(df_vent)
+    #print('rebin')
+    #print(df_vent1.dtypes)
+    df_vent2 = use_ndense_bins(df_vent)
     print('ndense')
     print(df_vent2.dtypes)
     df_vent3 = add_ROSS_gyre_to_df(df_vent2)
@@ -222,11 +222,11 @@ if __name__ == '__main__':
     df_vent4 = add_weddel_gyre_to_df(df_vent3)
     print('weddel')
     print(df_vent4.dtypes)
-
-    df_vent4.compute().to_parquet("/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation/df_vent_both_gyres.parquet", engine="pyarrow")
+    print(len(df_vent4))
+    df_vent4.compute().to_parquet("/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation/NEW_index_df_vent_both_gyres.parquet", engine="pyarrow")
 
 
 #check results
 
-df_new = dd.read_parquet('/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation/df_vent_both_gyres.parquet')
-print(df_new.dtypes)
+# df_new = dd.read_parquet('/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation/NEW_index_df_vent_both_gyres.parquet')
+# print(df_new.dtypes)

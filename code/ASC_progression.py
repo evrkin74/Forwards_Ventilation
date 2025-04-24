@@ -14,6 +14,7 @@ import numpy as np
 from matplotlib.colors import Normalize
 from matplotlib.colors import Normalize, LogNorm
 from scipy.stats import linregress
+from itertools import product
 
 
 import datetime
@@ -26,9 +27,13 @@ import datesandtime
 from matplotlib.animation import FuncAnimation, writers
 from dask.distributed import Client, LocalCluster
 
+
+
+
+
 # Load Data
 data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation")
-df_vent = dd.read_parquet(data_dir + "/df_vent_both_gyres.parquet")
+df_vent = dd.read_parquet(data_dir + "/NEW_index_df_vent_both_gyres.parquet")
 
 grid_path = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd/topo")
 grid_files = ['mask.nc', 'mesh_hgr.nc', 'mesh_zgr.nc']
@@ -865,6 +870,33 @@ for type in shelf_types:
     shelf_type_ind[type] = (np.array(shelf_type_deg[type])-72.75)*4
 print(shelf_type_ind)
 
+def separate_ASC(move_weddell):
+    x_max=600
+    ASC = move_weddell[(move_weddell['binnedx_i']<x_max)]
+    #need y limit, find where cost is from ds_domain, then add 50 pixels
+    bathy =  ds_domain.mbathy.values[:398,0:x_max]
+    #now find the last 0 in each column
+    y_locs = np.zeros(x_max)
+    #need the first deviation from zero
+    for i in range(x_max):
+        column = bathy[:, i]
+        nonzero_indices = np.where(column != 0)[0]
+        if len(nonzero_indices) > 0:
+            y_locs[i] = nonzero_indices[0]
+        else:
+            y_locs[i] = 398 
+
+
+    y_locs = y_locs + 50
+    #now make a df to merge onto asc
+    y_locs = np.where(y_locs<130,130,y_locs)
+    df_y = pd.DataFrame({'binnedx_i': np.arange(x_max), 'y_locs': y_locs})
+    ASC = ASC.merge(df_y, on='binnedx_i', how='left')
+
+    ASC = ASC[ASC['binnedy_i']<ASC['y_locs']]
+
+    return ASC
+
 def plot_box(type,df_vent,move_weddell,plot=True):
     #xrange = shelf_type_ind[type]
     df_vent = df_vent[['binnedx_i','binnedy_i','sf_zint']]
@@ -980,9 +1012,11 @@ def plot_ASC_sfzint(type,df_vent,move_weddell):
         volumes.append(df_int['subvol_o'].sum().compute())
 
     plt.tight_layout()
-    plt.savefig(f'../fig/Gyre/sfzint/Move_Weddell_sfzints')
+    plt.savefig(f'../fig/Gyre/sfzint/ASC_sfzints')
     #print(f'{type} _ VOLUMES = {volumes}')
     return volumes
+
+
 # fig,ax = plt.subplots(1,1,figsize=(8,6))
 # for type in ['dense']:
 #     print(type)
@@ -991,47 +1025,23 @@ def plot_ASC_sfzint(type,df_vent,move_weddell):
 #     plt.plot(plot_ASC_sfzint(type,df_vent,move_weddell))
 # plt.savefig('../fig/Gyre/sfzint/volumes')
 
-#plot_ASC_sfzint('a',df_vent,move_weddell)
+
 #plot_box('a',df_vent,move_ross)
 '''
 Plot the global stramfunction
 '''
-df_sfz = df_vent.drop_duplicates(subset=['binnedx_i', 'binnedy_i'])
-fig,ax = plt.subplots(1,1,figsize=(10, 10), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
-plt_cust.plot_i(fig,ax, ds_domain, df_sfz, 'sf_zint',vmin=-60,vmax=60,log=False,cmp = 'bwr')
-plt.savefig('../fig/SFZINT.png')
+# df_sfz = df_vent.drop_duplicates(subset=['binnedx_i', 'binnedy_i'])
+# fig,ax = plt.subplots(1,1,figsize=(10, 10), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+# plt_cust.plot_i(fig,ax, ds_domain, df_sfz, 'sf_zint',vmin=-60,vmax=60,log=False,cmp = 'bwr')
+# plt.savefig('../fig/SFZINT.png')
 
 '''
 Calculate depth vs sfzint parameter at each longitude bin (need bin to gather enough data)
 #require width y_loc of asc at each longitude
 '''
-#start by separating out the ASC
-def separate_ASC(move_weddell):
-    x_max=600
-    ASC = move_weddell[(move_weddell['binnedx_i']<x_max)]
-    #need y limit, find where cost is from ds_domain, then add 50 pixels
-    bathy =  ds_domain.mbathy.values[:398,0:x_max]
-    #now find the last 0 in each column
-    y_locs = np.zeros(x_max)
-    #need the first deviation from zero
-    for i in range(x_max):
-        column = bathy[:, i]
-        nonzero_indices = np.where(column != 0)[0]
-        if len(nonzero_indices) > 0:
-            y_locs[i] = nonzero_indices[0]
-        else:
-            y_locs[i] = 398 
-
-
-    y_locs = y_locs + 50
-    #now make a df to merge onto asc
-    y_locs = np.where(y_locs<130,130,y_locs)
-    df_y = pd.DataFrame({'binnedx_i': np.arange(x_max), 'y_locs': y_locs})
-    ASC = ASC.merge(df_y, on='binnedx_i', how='left')
-
-    ASC = ASC[ASC['binnedy_i']<ASC['y_locs']]
-
-    return ASC
+'''
+start by separating out the ASC
+'''
 # ASC = separate_ASC(move_weddell)
 # fig,ax = plt.subplots(1,1,figsize=(10, 10), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
 # plt_cust.plot_i(fig,ax, ds_domain, ASC, 'subvol_i')
@@ -1127,7 +1137,7 @@ def calculate_gyre_areas(df_vent):
         plt_cust.plot_o(fig,ax[i], ds_domain, gyre, 'subvol_o')
         
     plt.savefig('../fig/Gyre/gyre_extents.png')
-
+#calculate_gyre_areas(df_vent)
 
 def vol_in_df(move_weddell):
     ASC=move_weddell
@@ -1149,12 +1159,236 @@ def vol_in_df(move_weddell):
 # plt.savefig('../fig/Gyre/ASC_VOLUME.png')
 
 
+'''
+Look at time progression of a bunch of trajectories originating in a slice (one from the wide section, one from the narrow)
+'''
+
+def time_evolution_from_slice(df_vent,x_min,x_max):
+
+
+    #120-170 for wide
+    #280-320
+    df_50 = df_vent
+    df_slice = df_50[(df_50['binnedx_i']>x_min)&(df_50['binnedx_i']<x_max)]
+
+    years = np.arange(1984,2014,2)
+    fig,ax = plt.subplots(1,1,figsize=(12,6))
+    plt_cust.plot_depth_subvol(ax,fig,ds_domain,df_slice,col,xmin=x_min,xmax=x_max,isopycnals=True)
+    ax.invert_yaxis()
+    plt.savefig(f'../fig/Gyre/slice/{x_min}-{x_max}Gyre_entry_point.png')
+    fig,ax = plt.subplots(1,1,figsize=(10, 10), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+    plt_cust.plot_i(fig,ax,ds_domain, df_slice,'subvol_i',normalise =True)
+    plt.savefig(f'../fig/Gyre/slice/Coastal_region_{x_min}-{x_max}Start_points.png')
+   
+    # for i,year in enumerate(years):
+    #     fig,ax = plt.subplots(1,1,figsize=(10, 10), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+    #     df_year = df_slice[df_slice['year_o']<year]
+    #     plt_cust.plot_o(fig,ax, ds_domain, df_year,'subvol_o',normalise =True)
+    #     ax.set_title(year)
+    #     plt.savefig(f'../fi
+    
+
+    years =  np.arange(1984,2002,5)
+    depths = [25,35,40]
+    fig,ax = plt.subplots(len(depths),len(years),figsize=(40, 30), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+    print(ax.shape)
+    for i,year in enumerate(years):
+        for j,depth in enumerate(depths):
+        
+            df_year = df_slice[df_slice['year_o']<year]
+            if j!=0:
+                df_year = df_year[(df_year['binnedz_i']<depth)&(df_year['binnedz_i']>depths[j-1])]
+            else:
+                df_year = df_year[(df_year['binnedz_i']<depth)]
+
+            
+            plt_cust.plot_o(fig,ax[j,i], ds_domain, df_year,'subvol_o',normalise =True)
+            #plt_cust.highlight_sector(fig,ax[j,i],ds_domain,x_min,x_max)
+            ax[j,i].set_title(year)
+            print(year)
+    plt.savefig(f'../fig/Gyre/slice/ASC_start_Gyre_entry.png')
+ 
+# time_evolution_from_slice(df_vent,280,320)
+# time_evolution_from_slice(df_vent,120,170)
+# ASC = separate_ASC(df_vent)
+# time_evolution_from_slice(ASC,0,500)
+
+def sf_zint_change(df_vent):
+    print(df_vent.dtypes)
+    df_vent_copy = df_vent.copy()[['binnedx_i','binnedy_i','sf_zint']]
+    df_vent_copy=  df_vent_copy.drop_duplicates(subset=['binnedx_i', 'binnedy_i']).rename(
+        columns={'binnedx_i': 'binnedx_o', 'binnedy_i': 'binnedy_o', 'sf_zint': 'sf_zint_o'})
+    df_merge = df_vent.merge(df_vent_copy,on=('binnedx_o','binnedy_o'),how='left')
+    df_merge['del_sf'] = df_merge['sf_zint_o']-df_merge['sf_zint']
+    # fig,ax = plt.subplots(1,1,figsize=(10, 10), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+    # plt_cust.plot_o(fig,ax, ds_domain, df_merge,'del_sf',vmin=-100,vmax=100,cmp='bwr',sum_var = False,mean_var=True,normalise =False,log=False)
+    # plt.savefig('../fig/Gyre/sfzint/DEL_sf.png')
+
+    x_min,x_max=120,170
+    df_slice = df_merge[(df_merge['binnedx_i']>x_min)&(df_merge['binnedx_i']<x_max)]
+    years = np.arange(2010,2014,2)
+      
+   
+    for i,year in enumerate(years):
+        print(year)
+
+
+    
+vmins={
+    'so': 33.5,
+    'thetao': -1,
+    'uo': -1
+}
+
+vmaxs={
+    'so': 35,
+    'thetao': 5,
+    'uo': 1
+}
+
+def plot_model(ax,var,x):
+    vmin=vmins[var]
+    vmax=vmaxs[var]
+    model_path = os.path.abspath(f"/gws/nopw/j04/bas_pog/astyles/DRAKKAR_SET_for_Zhenya/month/ORCA025-N06_1983m02T.nc" ) 
+    ds_mld = xr.open_dataset(model_path, chunks='auto')[var].isel(time_counter=0, x=x-1, y=slice(1, 200))
+    print(ds_mld.info)
+    ds_mld_np = ds_mld.values
+    ds_mld_np = np.where(ds_mld_np != 0, ds_mld_np, np.nan)
+    fig = plt.figure()
+    plt.imshow(ds_mld_np,vmin=vmin,vmax=vmax)
+    plt.colorbar()
+    plt.savefig(f'../fig/Gyre/slice/{x}_{var}.png')
+
+# fig,ax = plt.subplots(1,1,figsize=(14,7))
+
+
+def plot_model_slices(x):
+    xs = np.array([x])
+    #vars = np.array(['so','thetao'])
+    vars = np.array(['uo'])
+    model_paths=[]
+
+    for i in range (12):
+        for year in range(1983,1993):
+            #model_paths.append(os.path.abspath(f"/gws/nopw/j04/bas_pog/astyles/DRAKKAR_SET_for_Zhenya/month/ORCA025-N06_1983m{i+1:02d}T.nc" ) )
+            model_paths.append(os.path.abspath(f"/gws/nopw/j04/bas_pog/astyles/DRAKKAR_SET_for_Zhenya/month/ORCA025-N06_{year}m{i+1:02d}U.nc" ) )
+    ds_mld = xr.open_mfdataset(model_paths, chunks='auto').isel(y=slice(0,398))
+    print(ds_mld)
+    for x, var in product(xs, vars):
+        # plot_model(ax,var,x)
+        vmin=vmins[var]
+        vmax=vmaxs[var]
+
+        fig, ax = plt.subplots(1, 1, figsize=(14, 7))
+        plt_cust.slice_model(fig,ax,ds_domain,ds_mld, x,x+50,var,isopycnals = True,vmin=vmin,vmax=vmax,cmp='bwr',contour=True,contour_levels=[-0.2,-0.1,-0.05])
+        plt.savefig(f'../fig/Gyre/slice/model/{x}_{var}.png')
+
+        print('saved')
+# for x in [300]:
+#      plot_model_slices(x)
+
+#Can also look at a depth slice of del_zf_zint (need to integrate across multiple x to get more ventilated trajectories)
+def plot_dels(df_vent):
+    #sf_zint first, usef initial positions + .merge to create sf_zint out
+    # df_vent_copy = df_vent.copy()[['binnedx_i','binnedy_i','sf_zint']]
+    # df_vent_copy=  df_vent_copy.drop_duplicates(subset=['binnedx_i', 'binnedy_i']).rename(columns={'binnedx_i': 'binnedx_o', 'binnedy_i': 'binnedy_o', 'sf_zint': 'sf_zint_o'})
+    # df_merge = df_vent.merge(df_vent_copy,on=('binnedx_o','binnedy_o'),how='left')
+    # df_merge['del_sf'] = df_merge['sf_zint_o']-df_merge['sf_zint']
+
+    # fig,ax = plt.subplots(1,1,figsize=(15,5))
+    # ax.invert_yaxis()
+    # plt_cust.plot_depth_subvol(ax,fig,ds_domain,df_merge,col,vmin=-20,vmax=20,xmin=200,xmax=250,isopycnals=True,var='del_sf',sum=False,normalise=False,cmp='bwr')
+
+    # plt.savefig(f'../fig/Gyre/slice/sf_zint_change.png')
+    df_vent = df_vent[df_vent['ndense']>1000]
+    df_vent['density_o'] = df_vent['density_o']+1000
+    df_vent['del_rho'] = df_vent['density_o'] - df_vent['ndense']
+    print(df_vent[['ndense','density_o','del_rho']].head())
+
+    fig,ax = plt.subplots(1,1,figsize=(15,5))
+    ax.invert_yaxis()
+    plt_cust.plot_depth_subvol(ax,fig,ds_domain,df_vent,col,vmin=-1,vmax=1,xmin=1100,xmax=1150,isopycnals=True,var='del_rho',sum=False,normalise=False,cmp='bwr')
+
+    plt.savefig(f'../fig/Gyre/slice/wed_gyre_density_change.png')
+#plot_dels(df_vent)
+
+
+#loop at a phase space of salinity - temp
+
+def sal_temp_phase(df_vent):
+    df_vent = df_vent[(df_vent['sal_o']>32)&(df_vent['sal_o']<37)]
+    fig=plt.figure()
+    cax=plt.hist2d(df_vent['sal_o'],df_vent['temp_o'],bins=(100,100),norm=LogNorm(vmin=1e4,vmax=1e7))
+    plt.colorbar(cax[3])
+    plt.xlim(32,37)
+    plt.savefig('../fig/Densities/Phase_space_o.png')
+    
+#sal_temp_phase(df_vent)
 
 '''
 Look at density of trajectories that remain in weddell
 '''
 
 
-
+'''
+Calculate streamfunctions at different timepoints
+'''
+def strm_func(ds_domain,year):
 
     
+    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    #Seeding area information (as defined in TRACMASS namelist) >>>>>>>>>>>>>>>
+    istmin = 1     # Minimum i-index seeded
+    istmax = 1440  # Maximum i-index seeded
+    jstmin = 1     # Minimum j-index seeded
+    jstmax = 398   # Maximum j-index seeded
+    iperio = True  # = True if i-index is periodic
+    jperio = False # = True if j-index is periodic
+
+
+    paths = []
+    for month in months:
+        paths.append(os.path.abspath(f"/gws/nopw/j04/bas_pog/astyles/DRAKKAR_SET_for_Zhenya/month/ORCA025-N06_{year}m{month+1.:2d}.nc" ) )
+    udata = xr.open_mfadataset(paths, chunks='auto')
+    udata=udata.mean(dim='time_counter',skipna=True)
+
+    
+
+    u_cube = udata["uo"][0,...,jstmin-1:jstmax, istmin-1:istmax]
+    e1u = ds_domain["e1u"][0,jstmin-1:jstmax, istmin-1:istmax].data
+    e2u = ds_domain["e2u"][0,jstmin-1:jstmax, istmin-1:istmax].data
+    e1v = ds_domain["e1v"][0,jstmin-1:jstmax, istmin-1:istmax].data
+    e2v = ds_domain["e2v"][0,jstmin-1:jstmax, istmin-1:istmax].data
+    e1t = ds_domain["e1t"][0,jstmin-1:jstmax, istmin-1:istmax].data
+    e2t = ds_domain["e2t"][0,jstmin-1:jstmax, istmin-1:istmax].data
+    e1f = ds_domain["e1f"][0,jstmin-1:jstmax, istmin-1:istmax].data
+    e2f = ds_domain["e2f"][0,jstmin-1:jstmax, istmin-1:istmax].data
+
+    e3u = ds_domain["e3u_0"][0,...,jstmin-1:jstmax, istmin-1:istmax].data
+    umask = ds_domain["umask"][0,...,jstmin-1:jstmax, istmin-1:istmax].astype(bool).data
+    tmask2d = ds_domain["tmaskutil"][0,jstmin-1:jstmax, istmin-1:istmax].astype(bool).data
+
+    u_zint = (u_cube.where(umask) * e3u).sum(dim="depthu", skipna=True)
+    sf_zint = -(u_zint * e2u).cumsum(dim="y") #Calculate stream function centred on F-Points
+
+    sf_zint_v = (sf_zint * e1f * e2f + (sf_zint * e1f * e2f).roll(x=1))/(2*e1v*e2v)
+    sf_zint_t = (sf_zint_v * e1v * e2v + (sf_zint_v * e1v * e2v).roll(y=1))/(2*e1t*e2t)
+    sf_zint_t = sf_zint_t.where(tmask2d)/1e6
+
+    plt.figure(dpi=200)
+    plt.pcolormesh(tmask2d, cmap=cmocean.cm.gray, vmin=0, vmax=1)
+    plt.pcolormesh(sf_zint_t, cmap=cmocean.cm.balance, norm=matplotlib.colors.TwoSlopeNorm(vcenter=0.))
+    plt.colorbar()
+    plt.ylabel(r"y index [-]")
+    plt.xlabel(r"x index [-]")
+    plt.title(fr"Depth-integrated stream function (Sv)")
+    plt.savefig(f"../fig/Gyre/sfzint/streamfunction_{year}.png")
+    plt.close()
+
+    # sf_zint_t.attrs["units"] = "Sv"
+    # sf_zint_t.name = "sf_zint_t"
+    # sf_zint_t.to_netcdf(out_dir + "/" + f"sf_zint_t.nc")
+
+for year in range(1983,2014):
+    strm_func(ds_domain,year) 

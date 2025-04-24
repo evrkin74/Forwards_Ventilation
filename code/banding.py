@@ -43,6 +43,9 @@ grid_files = ['mask.nc','mesh_hgr.nc','mesh_zgr.nc']
 
 #cal_months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 df_ini = dd.read_parquet(out_dir + f"/df_ini.combined.parquet")
+print(len(df_ini))
+print(df_ini.subvol.sum().compute())
+
 
 #df_out = dd.read_parquet(out_dir + f"/df_out.combined.parquet")
 #df_vent = dd.read_parquet(out_dir + f"/df_vent.parquet")
@@ -104,53 +107,85 @@ def plot_depth(ax,df): # plot seeding depth & volume in density class, integrate
 
 
 ########### USE from code used to generate df_vent
-xmin, xmax = imindom, imaxdom
-ymin, ymax = jmindom, jmaxdom
-zmin, zmax = kmindom, kmaxdom
+# xmin, xmax = imindom, imaxdom
+# ymin, ymax = jmindom, jmaxdom
+# zmin, zmax = kmindom, kmaxdom
 
-# xbins = np.linspace(xmin-0.5, xmax+0.5, num=xmax-xmin+2)
-# ybins = np.linspace(ymin-0.5, ymax+0.5, num=ymax-ymin+2)
-# zbins = np.linspace(zmin-0.5, zmax+0.5, num=zmax-zmin+2)
+# # xbins = np.linspace(xmin-0.5, xmax+0.5, num=xmax-xmin+2)
+# # ybins = np.linspace(ymin-0.5, ymax+0.5, num=ymax-ymin+2)
+# # zbins = np.linspace(zmin-0.5, zmax+0.5, num=zmax-zmin+2)
 
-#to truncate
-xbins = np.linspace(xmin, xmax, num=xmax-xmin+1)
-ybins = np.linspace(ymin, ymax, num=ymax-ymin+1)
-zbins = np.linspace(zmin, zmax, num=zmax-zmin+1)
-
-
-xbins[0], xbins[-1] = -float("inf"), float("inf")
-ybins[0], ybins[-1] = -float("inf"), float("inf")
-zbins[0], zbins[-1] = -float("inf"), float("inf")
-
-xcent = np.linspace(xmin, xmax, num=xmax-xmin, dtype=int)+1
-ycent = np.linspace(ymin, ymax, num=ymax-ymin, dtype=int)+1
-zcent = np.linspace(zmin, zmax, num=zmax-zmin, dtype=int)+1
+# #to truncate
+# xbins = np.linspace(xmin, xmax, num=xmax-xmin+1)
+# ybins = np.linspace(ymin, ymax, num=ymax-ymin+1)
+# zbins = np.linspace(zmin, zmax, num=zmax-zmin+1)
 
 
+# xbins[0], xbins[-1] = -float("inf"), float("inf")
+# ybins[0], ybins[-1] = -float("inf"), float("inf")
+# zbins[0], zbins[-1] = -float("inf"), float("inf")
 
-print(xbins)
-print(xcent)
+# xcent = np.linspace(xmin, xmax, num=xmax-xmin, dtype=int)+1
+# ycent = np.linspace(ymin, ymax, num=ymax-ymin, dtype=int)+1
+# zcent = np.linspace(zmin, zmax, num=zmax-zmin, dtype=int)+1
+
+
+
+# print(xbins)
+# print(xcent)
 
 
 
 #CORRECTED BINS
 
-df_ini["binnedx_i"] = df_ini["x"].map_partitions(pd.cut, xbins, labels=xcent,right=False, retbins=False).astype(int)
-df_ini["binnedy_i"] = df_ini["y"].map_partitions(pd.cut, ybins, labels=ycent,right=False, retbins=False).astype(int)
-df_ini["bin_depth_i"] = df_ini["z"].map_partitions(pd.cut, zbins, labels=zcent, right=False,retbins=False).astype(int)
+def rebin(df):
+    df_ini = df.copy()
+    xmin, xmax = imindom, imaxdom
+    ymin, ymax = jmindom, jmaxdom
+    zmin, zmax = kmindom, kmaxdom
+
+    xbins = np.linspace(xmin-0.5, xmax+0.5, num=xmax-xmin+2)
+    ybins = np.linspace(ymin, ymax, num=ymax-ymin+1)
+    zbins = np.linspace(zmin, zmax, num=zmax-zmin+1)
+
+    xbins[0], xbins[-1] = -float("inf"), float("inf")
+    ybins[0], ybins[-1] = -float("inf"), float("inf")
+    zbins[0], zbins[-1] = -float("inf"), float("inf")
 
 
-# #old bins
-# df_ini["binnedx_i"] = df_ini["x"].map_partitions(pd.cut, xbins, labels=xcent,retbins=False).astype(int)
-# df_ini["binnedy_i"] = df_ini["y"].map_partitions(pd.cut, ybins, labels=ycent, retbins=False).astype(int)
-# df_ini["bin_depth_i"] = df_ini["z"].map_partitions(pd.cut, zbins, labels=zcent, retbins=False).astype(int)
+    xcent = np.linspace(xmin, xmax, num=xmax-xmin+1)+1
+    ycent = np.linspace(ymin+0.5, ymax-0.5, num=ymax-ymin)+1
+    zcent = np.linspace(zmin+0.5, zmax-0.5, num=zmax-zmin)+1
 
 
 
-# df["binnedx_i"] = df["x"].map_partitions(pd.cut, xbins, labels=xcent, retbins=False).astype(int)
-# df["binnedy_i"] = df["y"].map_partitions(pd.cut, ybins, labels=ycent, retbins=False).astype(int)
-# df["bin_depth_i"] = df["z"].map_partitions(pd.cut, zbins, labels=zcent, retbins=False).astype(int)
+    print(xbins)
+    print(xcent)
 
+
+
+    #CORRECTED BINS
+
+    df_ini["binnedx_i"] = df_ini["x"].map_partitions(pd.cut, xbins, labels=xcent,right=False, retbins=False).astype(float)  
+    df_ini["binnedy_i"] = df_ini["y"].map_partitions(pd.cut, ybins, labels=ycent,right=False, retbins=False).astype(float)  
+    df_ini["binnedz_i"] = df_ini["z"].map_partitions(pd.cut, zbins, labels=zcent, right=False,retbins=False).astype(float)  
+
+
+
+    #define pythonic indexes
+    df_ini['x_index_i'] = (df_ini['binnedx_i']-1).astype(int) 
+    df_ini['y_index_i'] = (df_ini['binnedy_i'] -1.5).astype(int) 
+    df_ini['z_index_i'] = (df_ini['binnedz_i']-1.5).astype(int) 
+
+
+    df_ini['binnedx_i']=df_ini['x_index_i']+1
+    df_ini['binnedy_i']=df_ini['y_index_i']+1
+    df_ini['bin_depth_i']=df_ini['z_index_i']+1
+
+
+    return df_ini
+
+df_ini = rebin(df_ini)
 
 
 
@@ -175,7 +210,7 @@ df_ini["bin_depth_i"] = df_ini["z"].map_partitions(pd.cut, zbins, labels=zcent, 
 
 
 
-### zonally integrated
+# ### zonally integrated
 # fig,ax = plt.subplots(1,1)
 # plot_depth(ax,df_ini)
 # ax.tick_params(axis='x', which='both', labelbottom=True)
@@ -189,19 +224,19 @@ df_ini["bin_depth_i"] = df_ini["z"].map_partitions(pd.cut, zbins, labels=zcent, 
 
 
 # ####slice in longitude
-# df_interest = df_ini[df_ini['binnedx_i']==100]
-# fig,ax = plt.subplots(1,1)
-# cax=plot_depth(ax,df_interest)
-# ax.tick_params(axis='x', which='both', labelbottom=True)
-# ax.tick_params(axis='both', which='major', labelsize=20)
-# ax.invert_yaxis()
-# plt.title('Slice at binnedx_i = 100')
-# plt.xlabel('binnedy_i')
-# plt.ylabel('depth bin')
+df_interest = df_ini[df_ini['binnedx_i']==220]
+fig,ax = plt.subplots(1,1)
+cax=plot_depth(ax,df_interest)
+ax.tick_params(axis='x', which='both', labelbottom=True)
+ax.tick_params(axis='both', which='major', labelsize=20)
+ax.invert_yaxis()
+plt.title('Slice at binnedx_i = 220')
+plt.xlabel('binnedy_i')
+plt.ylabel('depth bin')
 
-# cbar=plt.colorbar(cax)
-# cbar.set_label('Volume $m^3$')
-# plt.savefig('../fig/banding/bwd_banding_slice_x_i==100.png',bbox_inches='tight')
+cbar=plt.colorbar(cax)
+cbar.set_label('Volume $m^3$')
+plt.savefig('../fig/banding/bwd_banding_slice_x_i==280.png',bbox_inches='tight')
 
 
 
