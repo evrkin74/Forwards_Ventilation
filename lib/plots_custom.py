@@ -58,10 +58,57 @@ def add_isobaths(fig, ax, ds_domain, depths=[1000,3500]):
     cont = ax.tricontour(tri, bathy_flat, levels=depths,
                          colors='black', linewidths=0.2)
     return cont
-
+def plot_horiz_array(fig,ax,ds_domain,arr,ymax=400,xmin=1,xmax=1440,cmp=cmocean.cm.thermal,vmin=None,vmax=None):
+    lons = ds_domain.gphit.isel({'x_c': 0,'y_c': slice(0, ymax)}).values
+    print(lons)
+    ax.set_xlim(lons[0], lons[-1])
+    lons = np.tile(lons, (75, 1))
+    depths = ds_domain.gdept_1d.values
+    depths = np.tile(depths, (ymax, 1)).T
+    #filter nan?
+    print(lons.shape,depths.shape,arr.shape)
+    if hasattr(arr, 'values'):
+        arr = arr.values
+        
+    # Handle min/max values
+    if vmin is None:
+        vmin = float(np.nanmin(arr))
+        vmax = float(np.nanmax(arr))
+    cplot=ax.pcolormesh(lons,depths,arr,cmap=cmp,vmin=vmin,vmax=vmax)
+    fig.colorbar(cplot)
     
-def slice_model(fig,ax,ds_domain,ds_mld, xmin, xmax,var,isopycnals = False,vmin=None,vmax=None,ymax=398,cmp=cmocean.cm.thermal,contour=None,cont_cmp='Greys',contour_levels=None,color_mesh=True,invert=True):
-    ds_mld=ds_mld.mean(dim='time_counter')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('depth')
+def add_bathymetry(fig,ax,ds_domain,xmin=0,xmax=1442,ymax=400):
+    bathy = ds_domain.mbathy.values[:ymax,xmin:xmax]
+    real_depths = ds_domain.e3t_1d['gdept_1d']
+    max_bathy = np.max(bathy, axis = 1)
+    bathy_depths = real_depths[max_bathy]
+    ax.plot(ds_domain.e2t.gphit[:ymax,0],bathy_depths, c = 'black',lw = 2)
+
+def add_isopycnals(fig,ax,ds_domain,xmin=0,xmax=1442,ymax=400):
+    col= ['red','green','yellow']
+    surf1= xr.open_dataset('/gws/nopw/j04/bas_pog/astyles/SouthernDemons/neutraldensity/output/ORCA025_Dec1982/ns_Dec_depth2491_ipin950_jpin_275_itermax10.nc')
+    surf2= xr.open_dataset('/gws/nopw/j04/bas_pog/astyles/SouthernDemons/neutraldensity/output/ORCA025_Dec1982/ns_Dec_depth1914_ipin950_jpin_275_itermax10.nc')
+    surf3= xr.open_dataset('/gws/nopw/j04/bas_pog/astyles/SouthernDemons/neutraldensity/output/ORCA025_Dec1982/ns_Dec_depth3976_ipin950_jpin_275_itermax10.nc')
+    for i,surf in enumerate([surf1,surf2,surf3]):
+        zonal_avg = da.nanmean(surf.ns_depth.values[0,0,:,xmin:xmax], axis =1)
+        ax.plot(ds_domain.e2t.gphit[:ymax,0],zonal_avg[:ymax],c = col[i],lw = 1)
+    
+def slice_model(fig,ax,ds_domain,ds_mld, xmin, xmax,var,isopycnals = False,vmin=None,vmax=None,ymax=398,cmp=cmocean.cm.thermal,contour=None,cont_cmp='Greys',contour_levels=None,color_mesh=True,invert=True,extreme=False):
+    ds_mld_vars = ds_mld.variables
+    for v in ds_mld_vars:
+        if (v!=var)&(v!='time_counter'):
+            ds_mld = ds_mld.drop(v)
+
+    if extreme:
+        mean_sign = da.sign(ds_mld.mean(dim='time_counter')).compute()
+        
+        ds_mld = xr.where(mean_sign >= 0,
+                        ds_mld.max(dim='time_counter', skipna=True),
+                        ds_mld.min(dim='time_counter', skipna=True))
+    else:
+        ds_mld=ds_mld.mean(dim='time_counter')
     col = ['red','green','yellow']
     print(ds_domain)
     
@@ -85,7 +132,7 @@ def slice_model(fig,ax,ds_domain,ds_mld, xmin, xmax,var,isopycnals = False,vmin=
         fig.colorbar(cplot)
     if contour:
         print('correct if')
-        ax.contour(lons,depths,ds_mld[var].values,levels=contour_levels,cmap=cont_cmp,linewidths=0.5)
+        ax.contour(lons,depths,ds_mld[var].values,levels=contour_levels,cmap=cont_cmp,linewidths=1)
     ax.set_title(f'{var}_{xmin}-{xmax}')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('depth')

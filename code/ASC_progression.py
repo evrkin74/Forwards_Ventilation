@@ -35,6 +35,8 @@ from dask.distributed import Client, LocalCluster
 data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation")
 df_vent = dd.read_parquet(data_dir + "/NEW_index_df_vent_both_gyres.parquet")
 
+df_ini = dd.read_parquet('/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd/OUTPUT.ORCA025_newindex/df_ini.combined.parquet')
+
 grid_path = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd/topo")
 grid_files = ['mask.nc', 'mesh_hgr.nc', 'mesh_zgr.nc']
 ds_domain = open_domain_cfg(datadir=grid_path, files=grid_files)
@@ -885,8 +887,6 @@ def separate_ASC(move_weddell):
             y_locs[i] = nonzero_indices[0]
         else:
             y_locs[i] = 398 
-
-
     y_locs = y_locs + 50
     #now make a df to merge onto asc
     y_locs = np.where(y_locs<130,130,y_locs)
@@ -903,14 +903,8 @@ def plot_box(type,df_vent,move_weddell,plot=True):
     df_vent = df_vent.drop_duplicates(subset=['binnedx_i', 'binnedy_i']).rename(
         columns={'binnedx_i': 'binnedx_o', 'binnedy_i': 'binnedy_o', 'sf_zint': 'sf_zint'}
     )
-
-
-
     move_weddell=move_weddell.drop(columns = ['sf_zint'])
     df_merge = move_weddell.merge(df_vent,on=['binnedx_o','binnedy_o'],how='left').persist()
-
-
-
     #df_merge=df_merge[df_merge['binnedy_i']<130]
     #df_merge = df_merge[(df_merge['binnedx_i']>0)&(df_merge['binnedx_i']<100)]
     #df_merge = df_merge[(df_merge['binnedy_i']<200)&(df_merge['binnedx_i']<400)]
@@ -1269,7 +1263,7 @@ def plot_model_slices(x):
     model_paths=[]
 
     for i in range (12):
-        for year in range(1983,1993):
+        for year in range(1983,2013):
             #model_paths.append(os.path.abspath(f"/gws/nopw/j04/bas_pog/astyles/DRAKKAR_SET_for_Zhenya/month/ORCA025-N06_1983m{i+1:02d}T.nc" ) )
             model_paths.append(os.path.abspath(f"/gws/nopw/j04/bas_pog/astyles/DRAKKAR_SET_for_Zhenya/month/ORCA025-N06_{year}m{i+1:02d}U.nc" ) )
     ds_mld = xr.open_mfdataset(model_paths, chunks='auto').isel(y=slice(0,398))
@@ -1280,11 +1274,11 @@ def plot_model_slices(x):
         vmax=vmaxs[var]
 
         fig, ax = plt.subplots(1, 1, figsize=(14, 7))
-        plt_cust.slice_model(fig,ax,ds_domain,ds_mld, x,x+50,var,isopycnals = True,vmin=vmin,vmax=vmax,cmp='bwr',contour=True,contour_levels=[-0.2,-0.1,-0.05])
+        plt_cust.slice_model(fig,ax,ds_domain,ds_mld, x,x+50,var,color_mesh=True,isopycnals = True,vmin=vmin,vmax=vmax,cmp='bwr',contour=True,contour_levels=[-0.05,-0.03,-0.01])
         plt.savefig(f'../fig/Gyre/slice/model/{x}_{var}.png')
 
         print('saved')
-# for x in [300]:
+# for x in [160]:
 #      plot_model_slices(x)
 
 #Can also look at a depth slice of del_zf_zint (need to integrate across multiple x to get more ventilated trajectories)
@@ -1342,53 +1336,162 @@ def strm_func(ds_domain,year):
     istmin = 1     # Minimum i-index seeded
     istmax = 1440  # Maximum i-index seeded
     jstmin = 1     # Minimum j-index seeded
-    jstmax = 398   # Maximum j-index seeded
+    jstmax = 400   # Maximum j-index seeded
     iperio = True  # = True if i-index is periodic
     jperio = False # = True if j-index is periodic
 
 
     paths = []
-    for month in months:
-        paths.append(os.path.abspath(f"/gws/nopw/j04/bas_pog/astyles/DRAKKAR_SET_for_Zhenya/month/ORCA025-N06_{year}m{month+1.:2d}.nc" ) )
-    udata = xr.open_mfadataset(paths, chunks='auto')
+    for month in range(12):
+
+        paths.append(os.path.abspath(f"/gws/nopw/j04/bas_pog/astyles/DRAKKAR_SET_for_Zhenya/month/ORCA025-N06_{year}m{month+1:02d}U.nc" ) )
+    #paths=(f'/gws/nopw/j04/bas_pog/astyles/DRAKKAR_SET_for_Zhenya/month/ORCA025-N06_{year}m08U.nc',)
+    udata = xr.open_mfdataset(paths, chunks='auto')
     udata=udata.mean(dim='time_counter',skipna=True)
 
     
 
-    u_cube = udata["uo"][0,...,jstmin-1:jstmax, istmin-1:istmax]
-    e1u = ds_domain["e1u"][0,jstmin-1:jstmax, istmin-1:istmax].data
-    e2u = ds_domain["e2u"][0,jstmin-1:jstmax, istmin-1:istmax].data
-    e1v = ds_domain["e1v"][0,jstmin-1:jstmax, istmin-1:istmax].data
-    e2v = ds_domain["e2v"][0,jstmin-1:jstmax, istmin-1:istmax].data
-    e1t = ds_domain["e1t"][0,jstmin-1:jstmax, istmin-1:istmax].data
-    e2t = ds_domain["e2t"][0,jstmin-1:jstmax, istmin-1:istmax].data
-    e1f = ds_domain["e1f"][0,jstmin-1:jstmax, istmin-1:istmax].data
-    e2f = ds_domain["e2f"][0,jstmin-1:jstmax, istmin-1:istmax].data
-
-    e3u = ds_domain["e3u_0"][0,...,jstmin-1:jstmax, istmin-1:istmax].data
-    umask = ds_domain["umask"][0,...,jstmin-1:jstmax, istmin-1:istmax].astype(bool).data
-    tmask2d = ds_domain["tmaskutil"][0,jstmin-1:jstmax, istmin-1:istmax].astype(bool).data
+    u_cube = udata["uo"][...,jstmin-1:jstmax, istmin-1:istmax]
+    print(ds_domain.e1u.shape)
+    e1u = ds_domain["e1u"][jstmin-1:jstmax, istmin-1:istmax].data
+    e2u = ds_domain["e2u"][jstmin-1:jstmax, istmin-1:istmax].data
+    e1v = ds_domain["e1v"][jstmin-1:jstmax, istmin-1:istmax].data
+    e2v = ds_domain["e2v"][jstmin-1:jstmax, istmin-1:istmax].data
+    e1t = ds_domain["e1t"][jstmin-1:jstmax, istmin-1:istmax].data
+    e2t = ds_domain["e2t"][jstmin-1:jstmax, istmin-1:istmax].data
+    e1f = ds_domain["e1f"][jstmin-1:jstmax, istmin-1:istmax].data
+    e2f = ds_domain["e2f"][jstmin-1:jstmax, istmin-1:istmax].data
+    e3u = ds_domain["e3u_0"][...,jstmin-1:jstmax, istmin-1:istmax].data
+    umask = ds_domain["umask"][...,jstmin-1:jstmax, istmin-1:istmax].astype(bool).data
+    tmask2d = ds_domain["tmaskutil"][jstmin-1:jstmax, istmin-1:istmax].astype(bool).data
 
     u_zint = (u_cube.where(umask) * e3u).sum(dim="depthu", skipna=True)
     sf_zint = -(u_zint * e2u).cumsum(dim="y") #Calculate stream function centred on F-Points
-
     sf_zint_v = (sf_zint * e1f * e2f + (sf_zint * e1f * e2f).roll(x=1))/(2*e1v*e2v)
     sf_zint_t = (sf_zint_v * e1v * e2v + (sf_zint_v * e1v * e2v).roll(y=1))/(2*e1t*e2t)
     sf_zint_t = sf_zint_t.where(tmask2d)/1e6
 
-    plt.figure(dpi=200)
-    plt.pcolormesh(tmask2d, cmap=cmocean.cm.gray, vmin=0, vmax=1)
-    plt.pcolormesh(sf_zint_t, cmap=cmocean.cm.balance, norm=matplotlib.colors.TwoSlopeNorm(vcenter=0.))
-    plt.colorbar()
-    plt.ylabel(r"y index [-]")
-    plt.xlabel(r"x index [-]")
-    plt.title(fr"Depth-integrated stream function (Sv)")
-    plt.savefig(f"../fig/Gyre/sfzint/streamfunction_{year}.png")
-    plt.close()
+    # plt.figure(dpi=200)
+    # plt.pcolormesh(tmask2d, cmap=cmocean.cm.gray, vmin=0, vmax=1)
+    # plt.pcolormesh(sf_zint_t, cmap=cmocean.cm.balance, norm=matplotlib.colors.TwoSlopeNorm(vcenter=0.))
+    # plt.colorbar()
+    # plt.ylabel(r"y index [-]")
+    # plt.xlabel(r"x index [-]")
+    # plt.title(fr"Depth-integrated stream function (Sv)")
+    # plt.savefig(f"../fig/Gyre/sfzint/streamfunction_{year}.png")
+    # plt.close()
 
-    # sf_zint_t.attrs["units"] = "Sv"
-    # sf_zint_t.name = "sf_zint_t"
-    # sf_zint_t.to_netcdf(out_dir + "/" + f"sf_zint_t.nc")
+    return sf_zint_t.where(tmask2d)
 
-for year in range(1983,2014):
-    strm_func(ds_domain,year) 
+def create_streamfunction_dataset(ds_domain):
+    years=np.arange(1982,2013,1)
+    # Calculate streamfunction for each year
+    ds_sf = xr.Dataset(
+        data_vars={
+            'sf_zint': (('time', 'y', 'x'), 
+                             np.zeros((len(years), 400, 1440), dtype='float32'))
+        },
+        coords={
+            'time': years,
+            'y': np.arange(400),
+            'x': np.arange(1440)
+        },
+        attrs={
+            'description': 'Depth-integrated stream function',
+            'units': 'Sv'
+        }
+    )
+    
+    # Fill year by year
+    for i, year in enumerate(years):
+        print(f"Processing year {year}")
+        ds_sf['sf_zint'][i, :, :] = strm_func(ds_domain, year)
+        print(ds_sf)
+    # Save final dataset
+    ds_sf.to_netcdf('/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation/yr_avg_streamfunction.nc')
+    print('SAVEeeeeeeeeeeeeeeeD')
+
+#create_streamfunction_dataset(ds_domain)
+
+
+# stream_read=xr.open_dataset('/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation/streamfunction.nc')
+# sf_zint_t = stream_read.sf_zint.isel(time=0).squeeze()
+# plt.figure(dpi=200)
+# plt.pcolormesh(sf_zint_t, cmap=cmocean.cm.balance, norm=matplotlib.colors.TwoSlopeNorm(vcenter=0.))
+# plt.colorbar()
+# plt.ylabel(r"y index [-]")
+# plt.xlabel(r"x index [-]")
+# plt.title(fr"Depth-integrated stream function (Sv)")
+# plt.savefig('../fig/Gyre/sfzint/streamfunction_1982.png')
+
+
+# print(df_ini.dtypes)
+
+# df_ini = df_ini[(df_ini['sal']>32)&(df_ini['sal']<37)]
+# fig=plt.figure()
+# cax=plt.hist2d(df_ini['sal'],df_ini['temp'],bins=(100,100),norm=LogNorm(vmin=1e5,vmax=1e8))
+# plt.colorbar(cax[3])
+# plt.xlim(32,37)
+# plt.savefig('../fig/Densities/Phase_space_ini.png')
+
+def gyre_area(year,ds_domain):
+    print(year)
+    sf_zints = xr.open_dataset(f"/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation/yr_avg_streamfunction.nc").sel(time=year).sf_zint
+    ds_domain=ds_domain.isel({'y_c': np.arange(400),'x_c': np.arange(1440)})
+    areas = da.squeeze(ds_domain.e1t * ds_domain.e2t).values
+    print(areas.shape)
+    print(sf_zints.shape)
+    mask = (sf_zints.values > 10) & (ds_domain.x_c.values > 250) & (ds_domain.x_c.values < 600)
+    areas = np.where(mask, areas, 0)
+    sum_yr = areas.sum()
+    print(f'{year},{sum_yr:.2e}')
+    return sum_yr
+
+def plot_gyre_strength():
+    years = np.arange(1983,2013)
+    sum_yr = []
+    for year in years:
+        sum_yr.append(gyre_area(year,ds_domain))
+    fig,ax=plt.subplots(1,1,figsize=(12, 6), dpi=400)
+    ax.plot(years,sum_yr)
+    ax.set_ylabel('Area (m²)')
+    ax.set_xlabel('Year')
+    plt.savefig('../fig/combined_analysis/Variability/gyre_strength.png')
+# print('starting_gyre')
+# plot_gyre_strength()
+
+
+'''
+Compute anomaly in MLD maximum depth in a year (to compare to sallee 2010)
+'''
+
+def mld_anomaly(ds_domain,year_eval):
+    years = np.arange(1982,2013) 
+    paths=[]
+    for year in years:
+        for month in range(12):
+            paths.append(os.path.abspath(f"/gws/nopw/j04/bas_pog/astyles/DRAKKAR_SET_for_Zhenya/month/ORCA025-N06_{year}m{month+1:02d}T.nc" ) )
+
+
+    
+    ds_mld = xr.open_mfdataset(paths, chunks='auto').isel(y=slice(0,400)).mldr10_1
+    #now take maximum in every year, then average across years
+    ds_mld = ds_mld.groupby('time_counter.year').max(dim='time_counter')
+    ds_mld_mean = ds_mld.mean(dim='year')
+    ds_mld_mean = ds_mld_mean.squeeze()
+    print(ds_mld_mean.shape,ds_mld_mean.dims)
+
+    #find anomaly in year 
+    ds_mld_anomaly = ds_mld.sel(year=year_eval) - ds_mld_mean
+    print(ds_mld_anomaly.dims)
+    #plot
+    fig,ax = plt.subplots(1,1,figsize=(12, 6), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+    plt_cust.plot_i(fig,ax, ds_domain, df_vent,'mldr10_1',vmin=-200,vmax=200,log=False,da_vol_xy=ds_mld_anomaly,normalise=False,cmp='bwr')
+    plt.savefig(f'../fig/combined_analysis/Variability/mld_anomaly_{year_eval}.png')
+    
+for year in np.arange(1982,2013):
+    print(year)
+    mld_anomaly(ds_domain,year)
+
+
+
