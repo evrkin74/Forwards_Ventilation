@@ -14,7 +14,10 @@ from scipy.stats import linregress
 from matplotlib.colors import Normalize, LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.tri import Triangulation, TriAnalyzer
-
+import matplotlib.path as mpath
+import matplotlib.ticker as mticker
+from matplotlib.ticker import NullFormatter
+from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter 
 import datetime
 import pandas as pd
 import datesandtime
@@ -36,6 +39,11 @@ def highlight_sector(fig,ax,ds_domain,xmin,xmax):
     rect = plt.Rectangle((lon0, lat0), lon1 - lon0, lat1 - lat0,
                          linewidth=1.3, linestyle='--', edgecolor='g', facecolor='none',transform=ccrs.PlateCarree())
     ax.add_patch(rect)
+
+
+
+
+    
 def add_isobaths(fig, ax, ds_domain, depths=[1000,3500]):
     # Subset the domain
     ds_domain = ds_domain.isel({'x_c': slice(0, 1442), 'y_c': slice(0, 400)})
@@ -58,7 +66,7 @@ def add_isobaths(fig, ax, ds_domain, depths=[1000,3500]):
     cont = ax.tricontour(tri, bathy_flat, levels=depths,
                          colors='black', linewidths=0.2)
     return cont
-def plot_horiz_array(fig,ax,ds_domain,arr,ymax=400,xmin=1,xmax=1440,cmp=cmocean.cm.thermal,vmin=None,vmax=None):
+def plot_horiz_array(fig,ax,ds_domain,arr,ymax=400,xmin=1,xmax=1440,cmp=cmocean.cm.thermal,vmin=None,vmax=None,contour=False,contour_levels=[20,40,60]):
     lons = ds_domain.gphit.isel({'x_c': 0,'y_c': slice(0, ymax)}).values
     print(lons)
     ax.set_xlim(lons[0], lons[-1])
@@ -69,23 +77,59 @@ def plot_horiz_array(fig,ax,ds_domain,arr,ymax=400,xmin=1,xmax=1440,cmp=cmocean.
     print(lons.shape,depths.shape,arr.shape)
     if hasattr(arr, 'values'):
         arr = arr.values
+    if contour:
+        print('correct if')
+        ax.contour(lons,depths,arr,levels=contour_levels,cmap='Greys',linewidths=1)
         
     # Handle min/max values
     if vmin is None:
         vmin = float(np.nanmin(arr))
         vmax = float(np.nanmax(arr))
-    cplot=ax.pcolormesh(lons,depths,arr,cmap=cmp,vmin=vmin,vmax=vmax)
-    fig.colorbar(cplot)
+   
+    norm=Normalize(vmin=vmin,vmax=vmax)
+    cplot=ax.pcolormesh(lons,depths,arr,cmap=cmp,norm=norm)
+   
+    #change x ticks to positive , but keep in same position
+
+
+
+    xticks_pos = ax.get_xticks()  # Get original positions
+    #remove -80 and -20
+    xticks_pos = [x for x in xticks_pos if x not in [-80, -20]]
+    xticks_labels = [f'{int(abs(x))}°S' for x in xticks_pos] # Convert to positive labels
+    ax.set_xticks(xticks_pos)  # Keep original positions
+    ax.set_xticklabels(xticks_labels)
+
     
-    ax.set_xlabel('Longitude')
-    ax.set_ylabel('depth')
+
+
+
+    divider = make_axes_locatable(ax)
+    cax_cb = divider.append_axes("right", size="2%", pad=0.1, axes_class=plt.Axes)
+    pos = ax.get_position()
+    cax_cb.set_position([cax_cb.get_position().x0,
+                        pos.y0,
+                        cax_cb.get_position().width,
+                        pos.height])
+    #make cbar thinner
+   
+
+
+    cbar = fig.colorbar(cplot, cax=cax_cb,pad=1.3)
+    
+    
+    
+    ax.set_xlabel('Longitude',fontsize=14)
+    ax.set_ylabel('Depth',fontsize=14)
+    return cbar
 def add_bathymetry(fig,ax,ds_domain,xmin=0,xmax=1442,ymax=400):
     bathy = ds_domain.mbathy.values[:ymax,xmin:xmax]
     real_depths = ds_domain.e3t_1d['gdept_1d']
     max_bathy = np.max(bathy, axis = 1)
     bathy_depths = real_depths[max_bathy]
     ax.plot(ds_domain.e2t.gphit[:ymax,0],bathy_depths, c = 'black',lw = 2)
-
+    #now colour in below
+    ax.fill_between(ds_domain.e2t.gphit[:ymax,0],bathy_depths, 6000, color = 'grey', alpha = 0.5)
 def add_isopycnals(fig,ax,ds_domain,xmin=0,xmax=1442,ymax=400):
     col= ['red','green','yellow']
     surf1= xr.open_dataset('/gws/nopw/j04/bas_pog/astyles/SouthernDemons/neutraldensity/output/ORCA025_Dec1982/ns_Dec_depth2491_ipin950_jpin_275_itermax10.nc')
@@ -155,8 +199,61 @@ def slice_model(fig,ax,ds_domain,ds_mld, xmin, xmax,var,isopycnals = False,vmin=
     if invert:
         ax.invert_yaxis()
 
-   
+def circe_bound(ax):
+    theta = np.linspace(0, 2*np.pi, 100)
+    center, radius = [0.5, 0.5], 0.5
+    verts = np.vstack([np.sin(theta), np.cos(theta)]).T
+    circle = mpath.Path(verts * radius + center)
+    ax.set_boundary(circle, transform=ax.transAxes)
+    ax.set_extent([-180, 180, -90, -25], ccrs.PlateCarree())
+      
 
+def add_grid(ax):
+    
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
+                      linewidth=0.2, color='black', alpha=1)
+    
+    # Set locators and check values
+    gl.xlocator = mticker.FixedLocator(np.arange(-180, 180+30, 30))
+    gl.ylocator = mticker.FixedLocator([-70, -50, -30])
+    # print("DEBUG: Longitude ticks:", gl.xlocator.tick_values(None, None))
+    
+    # Disable unwanted labels
+    gl.xlabels_top = True
+    gl.bottom_labels = True  # Explicitly enable bottom labels
+    gl.ylabel_style = {'color': 'none'}
+    
+    # Configure longitude labels
+    gl.xlabel_style = {'color': 'black'}
+    gl.xformatter = LongitudeFormatter()
+    gl.rotate_labels = False
+    
+    # Force draw and check artists
+    ax.figure.canvas.draw()
+    # print("DEBUG: Number of x-label artists:", len(gl.xlabel_artists))
+    # print("DEBUG: Artist positions:", [label.get_position() for label in gl.xlabel_artists])
+    
+  
+    #print(gl.xlabel_artists)
+    # Rotate specific longitude labels
+    for label, x in zip(gl.xlabel_artists, gl.xlocator.locs):
+        if x in [0, 180, -180]:
+            label.set_rotation(-90)
+            label.set_horizontalalignment('center')
+            label.set_verticalalignment('center')
+
+    # Move title up using y parameter
+    # current_title = ax.get_title()
+    # if current_title:
+    #     ax.set_title(current_title, y=1.1)
+
+    # Add manual latitude labels with background box
+    # for lat in [-70, -50, -30]:
+    #     ax.text(0, lat, f'{abs(lat)}°S', 
+    #             transform=ccrs.PlateCarree(),
+    #             ha='center', va='center', 
+    #             fontsize=10,
+    #             )
     
 
 
@@ -239,7 +336,7 @@ def plot_i(fig,ax, ds_domain, df, y, nan_check = None,vmax=None, vmin=None,vmax_
         
         divider = make_axes_locatable(ax)
         cax_cb = divider.append_axes("right", size="5%", pad=0.1, axes_class=plt.Axes)
-        cbar = fig.colorbar(cax, cax=cax_cb)
+        cbar = fig.colorbar(cax, cax=cax_cb, pad=0.7)
         return cbar
     else:
         return cax
@@ -307,7 +404,7 @@ def plot_o(fig,ax, ds_domain, df, y,nan_check=None, vmax=None, vmin=None,vmax_ca
         # Automatically create a colorbar axis that matches the height of the main plot
         
         divider = make_axes_locatable(ax)
-        cax_cb = divider.append_axes("right", size="5%", pad=0.1, axes_class=plt.Axes)
+        cax_cb = divider.append_axes("right", size="5%", pad=0.7, axes_class=plt.Axes)
         cbar = fig.colorbar(cax, cax=cax_cb)
         return cbar
      
