@@ -113,7 +113,18 @@ def calculate_gyre_volumes(df_vent):
         vol_vent = gyre['subvol_o'].sum().compute()
         print(f'{gyr_names[i]} volume transport in = {vol_vent:.3e} m^3')
 
-calculate_gyre_volumes(df_vent)
+#calculate_gyre_volumes(df_vent)
+
+import combined_analysis as comb
+def may_to_sept():
+   vols=comb.periodic_ventilation(fig=None,ax=None,plot=False,save=False)
+   vols=np.array(vols.subvol_o)
+   print(vols[3:10])
+   print(vols[3:10].sum())
+   print(vols.sum())
+   print(vols[3:10].sum()/vols.sum()*100)
+   
+
 
         
-
+may_to_sept()

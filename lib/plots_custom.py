@@ -2,6 +2,7 @@ import os
 import sys
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import dask.array as da
 import dask.dataframe as dd
 import xarray as xr
@@ -22,6 +23,26 @@ import datetime
 import pandas as pd
 import datesandtime
 import time
+
+mpl.rcParams['text.usetex'] = False
+mpl.rcParams['mathtext.fontset'] = 'cm'  # Computer Modern math font
+mpl.rcParams['font.family'] = 'sans-serif'
+mpl.rcParams['font.serif'] = ['Helvetica']
+
+mpl.rcParams['axes.titlesize'] = 16    # Set title font size to 16
+mpl.rcParams['axes.labelsize'] = 14    # Set axes labels font size to 14
+mpl.rcParams['xtick.labelsize'] = 12   # Set x-tick labels size to 12
+mpl.rcParams['ytick.labelsize'] = 12   # Set y-tick labels size to 12
+mpl.rcParams['legend.fontsize'] = 12   # Set legend font size to 12
+mpl.rcParams['figure.titlesize'] = 18  # Set figure title size to 18
+
+# Optional additional styling parameters for consistency
+mpl.rcParams['axes.grid'] = True       # Enable grid by default
+mpl.rcParams['grid.alpha'] = 0.3       # Make grid semi-transparent
+mpl.rcParams['axes.linewidth'] = 1.0   # Set axes line width
+mpl.rcParams['lines.linewidth'] = 1.0  # Set default line width for plots
+mpl.rcParams['savefig.dpi'] = 500      # Set default dpi for saved figures
+mpl.rcParams['savefig.bbox'] = 'tight' # Use tight bbox for saved figures
 
 
 def highlight_sector(fig,ax,ds_domain,xmin,xmax):
@@ -119,8 +140,8 @@ def plot_horiz_array(fig,ax,ds_domain,arr,ymax=400,xmin=1,xmax=1440,cmp=cmocean.
     
     
     
-    ax.set_xlabel('Longitude',fontsize=14)
-    ax.set_ylabel('Depth',fontsize=14)
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Depth')
     return cbar
 def add_bathymetry(fig,ax,ds_domain,xmin=0,xmax=1442,ymax=400):
     bathy = ds_domain.mbathy.values[:ymax,xmin:xmax]
@@ -274,6 +295,7 @@ def plot_i(fig,ax, ds_domain, df, y, nan_check = None,vmax=None, vmin=None,vmax_
     
     lat, lon = ds_domain_allign.gphit.values, ds_domain_allign.glamt.values
     if normalise:
+        print('normalising')
         area = (ds_domain.e1t*ds_domain.e2t).squeeze()
         da_vol_xy=da_vol_xy/area
 
@@ -300,6 +322,7 @@ def plot_i(fig,ax, ds_domain, df, y, nan_check = None,vmax=None, vmin=None,vmax_
     if log==True:
         if vmax_cap:
             vmin = np.maximum(vmin,vmax/1000)
+        print(vmin,vmax)
         norm = LogNorm(vmin=vmin, vmax=vmax) 
     else:
         #print(vmin.compute(),vmax.compute())
@@ -499,7 +522,7 @@ def plot_depth_subvol(ax,fig,ds_domain,df,col = ['red','green','yellow'],xmin=0,
     #print(1442,398)
     ax.plot(ds_domain.e2t.gphit[:398,0],bathy_depths, c = 'black',lw = 2)
     cbar=fig.colorbar(cax)
-    cbar.set_label(r"Normalised Volume ($m^3$/$m^3$)", fontsize=14)
+    cbar.set_label(r"Normalised Volume ($m^3$/$m^3$)")
 
 
     if isopycnals == True:

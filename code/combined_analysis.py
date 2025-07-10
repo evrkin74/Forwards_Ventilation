@@ -1,6 +1,6 @@
 import os
 import sys
-import matplotlib
+import matplotlib as mpl
 import re
 import matplotlib.pyplot as plt
 import dask.array as da
@@ -29,6 +29,29 @@ import plots_custom as plt_cust
 import datesandtime
 
 
+mpl.rcParams['text.usetex'] = False
+mpl.rcParams['mathtext.fontset'] = 'cm'  # Computer Modern math font
+mpl.rcParams['font.family'] = 'sans-serif'
+mpl.rcParams['font.serif'] = ['Helvetica']
+
+mpl.rcParams['axes.titlesize'] = 16    # Set title font size to 16
+mpl.rcParams['axes.labelsize'] = 14    # Set axes labels font size to 14
+mpl.rcParams['xtick.labelsize'] = 12   # Set x-tick labels size to 12
+mpl.rcParams['ytick.labelsize'] = 12   # Set y-tick labels size to 12
+mpl.rcParams['legend.fontsize'] = 12   # Set legend font size to 12
+mpl.rcParams['figure.titlesize'] = 18  # Set figure title size to 18
+
+# Optional additional styling parameters for consistency
+mpl.rcParams['axes.grid'] = True       # Enable grid by default
+mpl.rcParams['grid.alpha'] = 0.3       # Make grid semi-transparent
+mpl.rcParams['axes.linewidth'] = 1.0   # Set axes line width
+mpl.rcParams['lines.linewidth'] = 1.0  # Set default line width for plots
+mpl.rcParams['savefig.dpi'] = 500      # Set default dpi for saved figures
+mpl.rcParams['savefig.bbox'] = 'tight' # Use tight bbox for saved figures
+mpl.rcParams['savefig.pad_inches'] = 0.2 # Padding for saved figures
+
+
+
 imindom = 1
 imaxdom = 1440
 jmindom = 1
@@ -53,6 +76,10 @@ for basin in basins:
 data_dir = os.path.abspath("/gws/nopw/j04/bas_pog/evrkin74/Forwards_Ventilation")
 df_vent = dd.read_parquet(data_dir + "/NEW_index_df_vent_both_gyres.parquet")
 df_ini = dd.read_parquet('/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd/OUTPUT.ORCA025_newindex/df_ini.combined.parquet')
+
+data_dir_bwd = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_bwd/OUTPUT.ORCA025_newindex")
+df_vent_bwd = dd.read_parquet(data_dir_bwd + f"/df_vent.parquet")
+
 grid_path = os.path.abspath("/gws/nopw/j04/bas_pog/astyles/ORCA025_fwd/topo")
 grid_files = ['mask.nc', 'mesh_hgr.nc', 'mesh_zgr.nc']
 ds_domain = open_domain_cfg(datadir=grid_path, files=grid_files)
@@ -78,12 +105,15 @@ def title_page(ds_domain):
     print(type(cax))
     #scale height of colorbar
 
-    divider = make_axes_locatable(ax)
-    cax_cb = divider.append_axes("right", size="5%", pad=1, axes_class=plt.Axes)
-    cbar=fig.colorbar(cax,cax=cax_cb,pad=0.5)
-    cbar.set_label(r'Bathymetry depth (m)', fontsize= 14)
+    # divider = make_axes_locatable(ax)
+    # cax_cb = divider.append_axes("right", size="5%", pad=1, axes_class=plt.Axes)
+    # cbar=fig.colorbar(cax,cax=cax_cb,pad=0.5)
+    # cbar.set_label(r'Bathymetry depth (m)')
+    #horizontal
+    cbar = plt.colorbar(cax, orientation='horizontal', pad=0.1,  shrink=0.4, aspect=25,fraction=0.05 )
+    cbar.set_label(r'Bathymetry depth (m)')
   
-    plt.savefig('../fig/combined_analysis/intro/title_page.png')
+    plt.savefig('../fig/combined_analysis/Intro/title_page.png',bbox_inches='tight')
 #title_page(ds_domain)
 def so_dynamics(df_vent):
     #take velocities at the starting point of the experiment
@@ -117,7 +147,7 @@ def so_dynamics(df_vent):
     divider = make_axes_locatable(ax)
     cax_cb = divider.append_axes("right", size="5%", pad=1, axes_class=plt.Axes)
     cbar=fig.colorbar(cax,cax=cax_cb,pad=0.5)
-    cbar.set_label(r'Horizonal velocity ($m/s$)', fontsize= 14)
+    cbar.set_label(r'Horizonal speed ($m/s$)')
 
    
     plt.savefig('../fig/combined_analysis/Intro/initial_velocities.png')
@@ -149,10 +179,10 @@ def ventilation_timeseries(df_vent,fig=None,ax=None,plot=True,save=False,end_yr=
         if fig == None:
             fig,ax = plt.subplots(1,1,figsize=(10,5))
             
-        ax.grid()
+       # ax.grid()
         ax.plot(vol['date'], (vol['subvol_o']/(1e15)), color='royalblue',  label='Ventilated Volume')
-        ax.set_ylabel(r'Volume Ventilated ($10^{15}$ $m^3$)', fontsize= 14)
-        ax.set_xlabel('Year', fontsize= 14)
+        ax.set_ylabel(r'Volume Ventilated ($10^{15}$ $m^3$)')
+        ax.set_xlabel('Year')
         #add vertical line at Aug1st 1983
         ax.axvline(pd.to_datetime('1983-08-01'), color='red', linestyle='--', label='')
         ax.axvspan(pd.to_datetime('1982-12-15'), pd.to_datetime('1983-08-01'), color='k', alpha=0.1, lw=0, zorder=-1)
@@ -183,11 +213,11 @@ def periodic_ventilation(fig=None,ax=None,plot=True,save=False):
         plt.style.use("seaborn-v0_8-paper")
         if fig == None:
             fig,ax = plt.subplots(1,1,figsize=(10,5))
-        ax.grid()
+        #ax.grid()
 
         ax.plot(cal_months[(vol_period['month_o'].astype(int) - 1).values],vol_period['subvol_o'] ,color='royalblue',marker='o',label='Ventilated Volume')
-        ax.set_ylabel(r'Volume Ventilated (Normalised)', fontsize= 14)
-        ax.set_xlabel('Month',fontsize=14)       
+        ax.set_ylabel(r'Volume Ventilated (Normalised)')
+        ax.set_xlabel('Month')       
         if save:
             plt.savefig('../fig/combined_analysis/Background_model_state/periodic_ventilation.png')
     return vol_period
@@ -232,8 +262,8 @@ def cumultive_ventilation1d(fig=None,ax=None,plot=True,save=False):
         ax.plot(vol_late['date'],vol_late['cumulative'],c='orange',label='late')
        
         ax.plot(vol_late['date'],vol_late['cumulative'],c='orange')
-        ax.set_ylabel('Cumulative Volume ventilated ($m^3$)',fontsize=14)
-        ax.set_xlabel('Year',fontsize=14)
+        ax.set_ylabel('Cumulative Volume ventilated ($m^3$)')
+        ax.set_xlabel('Year')
         ax.legend()
         ax.set_xlim(pd.to_datetime('1982-11-01'),pd.to_datetime('2012-12-01'))
         ax.set_ylim(0,3.9e16)
@@ -243,7 +273,7 @@ def cumultive_ventilation1d(fig=None,ax=None,plot=True,save=False):
 
 
 def background_model_temporal():
-    fig,ax = plt.subplots(1,2,figsize=(15,8))
+    fig,ax = plt.subplots(1,2,figsize=(20,8))
     ventilation_timeseries(df_vent,fig,ax[0])
     periodic_ventilation(fig,ax[1])
     fig.tight_layout()
@@ -282,7 +312,7 @@ def reentrained_ventilation(fig=None,ax=None,plot=True,save=False):
     if not fig:
         fig, ax= plt.subplots(1, 1, figsize=(12, 6), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
     cbar=plt_cust.plot_o(fig,ax, ds_domain, df_reentrained, 'subvol_o',normalise=True)
-    cbar.set_label(r'Volume ventilated per unit area ($m^3/m^2$)', fontsize= 14)
+    cbar.set_label(r'Volume ventilated per unit area ($m^3/m^2$)')
     plt_cust.circe_bound(ax)
     plt_cust.add_grid(ax)    
     
@@ -299,7 +329,7 @@ def late_ventilation(df_vent,fig=None,ax=None,plot=True,save=False,):
         fig, ax= plt.subplots(1, 1, figsize=(12, 6), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
     cbar=plt_cust.plot_o(fig,ax, ds_domain, df_late, 'subvol_o',normalise=True)
     #label cbar
-    cbar.set_label(r'Volume ventilated per unit area ($m^3/m^2$)', fontsize= 14)
+    cbar.set_label(r'Volume ventilated per unit area ($m^3/m^2$)')
     
     plt_cust.circe_bound(ax)
     plt_cust.add_grid(ax)    
@@ -403,7 +433,7 @@ def percent_vent(df_vent,df_ini,name=None,rebin=False,fig=None,ax=None,save=Fals
     if not fig:
         fig,ax= plt.subplots(1,1,figsize=(12, 6), dpi=400)
     
-    cbar=plt_cust.plot_horiz_array(fig,ax,ds_domain,df_ratio,ymax=398,xmin=1,xmax=1440,cmp=cmocean.cm.thermal,vmin=0,vmax=100,contour=True,contour_levels=[20,40,60])
+    cbar=plt_cust.plot_horiz_array(fig,ax,ds_domain,df_ratio,ymax=398,xmin=1,xmax=1440,cmp=cmocean.cm.matter,vmin=0,vmax=100,contour=True,contour_levels=[20,40,60])
 
     ax.invert_yaxis()
     if save:
@@ -453,8 +483,8 @@ def plot_seeding():
     ax1 = fig.add_subplot(gs[1])
 
     df_late = df_vent[~((df_vent['year_o'] == 1982) | ((df_vent['year_o'] == 1983) & (df_vent['month_o'] < 8)))]
-    cbar=plt_cust.plot_i(fig, ax0, ds_domain, df_late, 'subvol_i', normalise=True,vmin=10,vmax=1000)
-    cbar.set_label(r'Ventilated volume per unit area ($m^3/m^2$)', fontsize=14)
+    cbar=plt_cust.plot_i(fig, ax0, ds_domain, df_late, 'subvol_i',vmin=50,vmax=5000,normalise=True)
+    cbar.set_label(r'Ventilated volume per unit area ($m^3/m^2$)')
     ax1.set_box_aspect(0.58)
     perc_by_basin(df_vent, ds_domain, df_ini, basins_all=['atlantic'], fig=fig, ax=ax1)
     plt_cust.add_bathymetry(fig, ax1, ds_domain, xmin=int(basins_index['atlantic'][0]), xmax=int(basins_index['atlantic'][1]))
@@ -465,36 +495,40 @@ def plot_seeding():
 
     fig.tight_layout(pad=0.5)
     fig.subplots_adjust(wspace=0.6)  # Adjust space between subplots
-    ax0.set_title('Seeding locations', fontsize=15)
-    ax1.set_title('Atlantic sector', fontsize=15)
+    ax0.set_title('Seeding locations')
+    ax1.set_title('Atlantic sector')
     plt.savefig('../fig/combined_analysis/Background_model_state/seeding.png')
 #plot_seeding()
 def seed_separate():
-    fig,ax = plt.subplots(1,1,figsize=(8, 8), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
+    fig,ax = plt.subplots(1,1,figsize=(8, 8), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()},constrained_layout=True)
     df_late =  df_vent[~((df_vent['year_o'] == 1982)|((df_vent['year_o'] == 1983)&(df_vent['month_o'] <8)))]
-    cax=plt_cust.plot_i(fig,ax, ds_domain, df_late, 'subvol_i',normalise=True,cbar=False)
+    cax=plt_cust.plot_i(fig,ax, ds_domain, df_late, 'subvol_i',normalise=True,cbar=False,vmin=50,vmax=1000)
 
-    cax_cb = make_axes_locatable(ax).append_axes("right", size="5%", pad=0.1, axes_class=plt.Axes)
-    cbar=fig.colorbar(cax,cax=cax_cb,pad=0.5)
-    cbar.set_label(r'Normalised ventilated volume ($m^3/m^2$)', fontsize=14)
+    
+    
     plt_cust.circe_bound(ax)
     plt_cust.add_grid(ax)
+    divider = make_axes_locatable(ax)
+    cax_cb = divider.append_axes("right", size="5%", pad=1, axes_class=plt.Axes)
+    cbar=fig.colorbar(cax,cax=cax_cb,pad=0.5)
+    cbar.set_label(r'Normalised ventilated volume ($m^3/m^2$)',)
 
-    ax.set_title('Seeding locations',fontsize=16)
-    plt.savefig('../fig/combined_analysis/Background_model_state/seeding_xy.png')
-
+    ax.set_title('Seeding locations')
+    plt.savefig('../fig/combined_analysis/Background_model_state/seeding_xy.png',bbox_inches='tight', pad_inches=0.1)
+    print('xy doneeee')
     fig,ax = plt.subplots(1, 1, figsize=(12, 6), dpi=400)
    
     cbar=perc_by_basin(df_vent,ds_domain,df_ini,basins_all = ['atlantic'],fig=fig,ax=ax)
     plt_cust.add_bathymetry(fig,ax,ds_domain,xmin=int(basins_index['atlantic'][0]),xmax=int(basins_index['atlantic'][1]),ymax=398)
-    cbar.set_label(r'Percentage of ventilated trajectories', fontsize=14)
+    cbar.set_label(r'Percentage of ventilated trajectories')
     #add horiz padding
   
     
-    ax.set_title('Atlantic basin',fontsize=16)
+    ax.set_title('Atlantic basin')
     plt.savefig('../fig/combined_analysis/Background_model_state/seeding_yz.png')
 
-seed_separate()
+# seed_separate()
+
 '''
 look at effects of topography (integrated meridionally)
 '''
@@ -550,15 +584,15 @@ def plot_topography_effects():
 
     for region in longitude_ranges_mld:
         start, end = longitude_ranges_mld[region]
-        ax.axvspan(start, end, color='seagreen', alpha=0.3)
+        ax.axvspan(start, end, color='seagreen', alpha=0.15)
         # Add text at center of region
         center = (start + end) / 2
         ax.text(center, ax.get_ylim()[1] * 0.2, region,
                 horizontalalignment='center',
                 verticalalignment='bottom',
                 color='seagreen')
-    ax.set_xlabel('Longitude',fontsize=14)
-    ax.set_ylabel(r'Volume Ventilated ($ 10^{13}$ $ m^3$)',fontsize=14)
+    ax.set_xlabel('Longitude of Ventilation')
+    ax.set_ylabel(r'Volume Ventilated ($ 10^{13}$ $ m^3$)')
     #replace ticks by degrees E and W
     xticks = ax.get_xticks()
     xticks_labels = []
@@ -612,7 +646,7 @@ def plot_yr_evolution_i(df,fig=None,axes=None,plot=True,name=None ,save=False):
         cax = plt_cust.plot_i(fig,axes[i], ds_domain, df_filt, 
                              'subvol_i', vmax=1e3, vmin=1,
                              cbar=False,normalise=True)  
-        axes[i].set_title(f"Before {year} ", fontsize=14)
+        axes[i].set_title(f"Before {year} ")
         plt_cust.add_grid(axes[i])
         plt_cust.circe_bound(axes[i])
     
@@ -630,6 +664,18 @@ def plot_yr_evolution_i(df,fig=None,axes=None,plot=True,name=None ,save=False):
         else:
             plt.savefig('../fig/combined_analysis/Gyre_vent/Time_evolving_seeding', 
                        bbox_inches='tight')
+# def plot_yr_i(df,year,name=None):
+#     df = df.reset_index(drop=True)
+#     df_filt = df[(df['year_o']<=year)]
+#     fig,ax = plt.subplots(1, len(years), figsize=(12, 6), dpi=600, subplot_kw={'projection': ccrs.SouthPolarStereo()},constrained_layout=True)  
+#     cax = plt_cust.plot_i(fig,ax, ds_domain, df_filt, 
+#                             'subvol_i', vmax=1e3, vmin=1,
+#                             cbar=False,normalise=True)  
+#     ax.set_title(f"Before {year} ")
+#     plt_cust.add_grid(ax)
+#     plt_cust.circe_bound(ax)
+#     plt.savefig
+
 
 def plot_yr_evolution_o(df,fig=None,axes=None,plot=True,name=None ,save=False):
     years = [1986,1989,1992,2012]
@@ -640,7 +686,7 @@ def plot_yr_evolution_o(df,fig=None,axes=None,plot=True,name=None ,save=False):
         print(year)
         df_filt = df[(df['year_o']<=year)]
         cax = plt_cust.plot_o(fig,axes[i], ds_domain, df_filt, 'subvol_o', vmax=1e11, vmin=1e9,cbar=False)  #[i]
-        axes[i].set_title(f"Before {year} ", fontsize=14)
+        axes[i].set_title(f"Before {year} ")
     # Colorbar & Layout
     cbar = fig.colorbar(cax, ax=axes, orientation='horizontal', fraction=.05)
     cbar.set_label("Normalised volume transport (m³)")
@@ -687,8 +733,8 @@ def box_plot(df_vent,move_weddell,sf_max,plot=True,name=None,fig=None,ax=None,c1
         columns={'binnedx_i': 'binnedx_o', 'binnedy_i': 'binnedy_o', 'sf_zint': 'sf_zint'}
     )
 
-    move_weddell=move_weddell.drop(columns = ['sf_zint'])
-    df_merge = move_weddell.merge(df_vent,on=['binnedx_o','binnedy_o'],how='left').persist()
+    move_weddell=move_weddell.drop(columns = ['sf_zint']).compute()
+    df_merge = move_weddell.merge(df_vent.compute(),on=['binnedx_o','binnedy_o'],how='left').persist()
     print('merge')
     df_merge=df_merge.dropna()  
     df_merge = df_merge[df_merge['sf_zint']>10]
@@ -715,13 +761,13 @@ def box_plot(df_vent,move_weddell,sf_max,plot=True,name=None,fig=None,ax=None,c1
     if plot:
         ax.boxplot(data_to_plot, patch_artist=True, boxprops=dict(facecolor=c1), medianprops=dict(color=c2))
         
-        ax.set_xlabel("Streamfunction bins (Sv)", fontsize=14)
-        ax.set_ylabel("Depth (m)", fontsize=14)
+        ax.set_xlabel("Streamfunction bins (Sv)")
+        ax.set_ylabel("Depth (m)")
 
         
         box_positions = range(1, len(sfzints) + 1)  # Box positions (1, 2, 3, ...)
         ax.set_xticks(box_positions)
-        ax.set_xticklabels(labels, fontsize=12)
+        ax.set_xticklabels(labels)
         
         # Fit regression line using box positions instead of centered_sfzint
         reg = linregress(box_positions, medians)
@@ -739,7 +785,7 @@ def box_plot(df_vent,move_weddell,sf_max,plot=True,name=None,fig=None,ax=None,c1
 
     return medians,centered_sfzint,labels
 
-def separate_ASC(move_weddell):
+def separate_ASC(move_weddell,return_negative=False):
     x_max=600
     ASC = move_weddell[(move_weddell['binnedx_i']<x_max)]
     bathy =  ds_domain.mbathy.values[:400,0:x_max]
@@ -757,9 +803,17 @@ def separate_ASC(move_weddell):
     #now make a df to merge onto asc
     y_locs = np.where(y_locs<130,130,y_locs)
     df_y = pd.DataFrame({'binnedx_i': np.arange(x_max), 'y_locs': y_locs})
-    ASC = ASC.merge(df_y, on='binnedx_i', how='left')
-    ASC = ASC[ASC['binnedy_i']<ASC['y_locs']]
+    y_lim = ASC.merge(df_y, on='binnedx_i', how='left')
+    ASC = y_lim[y_lim['binnedy_i']<y_lim['y_locs']]
+    if return_negative:
+        ACC_weddell_smallx = y_lim[y_lim['binnedy_i']>=y_lim['y_locs']]
+        ACC_largex = move_weddell[move_weddell['binnedx_i']>=x_max]
+        ACC_weddell = dd.concat([ACC_weddell_smallx,ACC_largex]).compute()
+        print(len(ACC_weddell))
+        return ASC,ACC_weddell
+    
     return ASC
+
 def boxplot_ASC(df_vent):
     move_weddell, move_ross = generate_move(df_vent)
     ASC= separate_ASC(move_weddell)
@@ -778,9 +832,12 @@ def boxplot_ACC_weddell(df_vent):
     move_weddell, move_ross = generate_move(df_vent)
     ASC= separate_ASC(move_weddell)
     #now remove ASC from df_vent to get ACC
+    # ASC_traj = set(ASC['ntrajc'].compute())
+    # mask = df_vent['ntrajc'].map_partitions(lambda x: ~x.isin(ASC_traj))
+    # df_ACC = df_vent[mask]
     ASC_traj = set(ASC['ntrajc'].compute())
-    mask = df_vent['ntrajc'].map_partitions(lambda x: ~x.isin(ASC_traj))
-    df_ACC = df_vent[mask]
+    df_ACC = move_weddell[~move_weddell['ntrajc'].isin(ASC_traj)]
+    print(f'ACC Weddell length (in fiunc) {len(df_ACC)}')
     
     med,sfz,l=box_plot(df_vent,df_ACC,60,plot=True,name='Wedell_ACC')
     print(f'ACC_weddell,{med},{sfz}')
@@ -790,15 +847,15 @@ def boxplot_all(df_vent):
     fig,ax = plt.subplots(1,3,figsize=(14, 6), sharex=True, dpi=400)
 
     move_weddell, move_ross = generate_move(df_vent)
-    ASC= separate_ASC(move_weddell)
+    ASC,df_ACC= separate_ASC(move_weddell,return_negative=True)
+    print(df_ACC.head())
+
     med,sfz,labels=box_plot(df_vent,ASC,60,plot=True,name='ASC',fig=fig,ax=ax[0])
     print(f'ASC,{med},{sfz}')
     print(linregress(sfz,med))
 
-    ASC= separate_ASC(move_weddell)
-    ASC_traj = set(ASC['ntrajc'].compute())
-    mask = df_vent['ntrajc'].map_partitions(lambda x: ~x.isin(ASC_traj))
-    df_ACC = df_vent[mask]
+
+    print(f'ACC Weddell length {len(df_ACC)}')
     med,sfzints,l=box_plot(df_vent,df_ACC,60,plot=True,name='Wedell_ACC',fig=fig,ax=ax[1])
     print(f'ACC_weddell,{med},{sfzints}')
     print(linregress(sfz,med))
@@ -813,7 +870,7 @@ def boxplot_all(df_vent):
 
 
     ax[0].set_xticks(range(1, len(sfzints) + 1))  # Set tick positions
-    ax[0].set_xticklabels(labels, fontsize=12)  # Set bin labels
+    ax[0].set_xticklabels(labels)  # Set bin labels
 
     fig.tight_layout()
     fig.subplots_adjust(wspace=0.3)
@@ -858,7 +915,7 @@ def gyre_vent():
 '''
 Now thinking about densities
 '''
-def density_histogram(df, ymax=None, plot=False, ax1=None, ax2=None, save=False):
+def density_histogram(df, ymax=None, plot=False, ax1=None, ax2=None, save=False,colour='blue',label=None):
     
     df_out = df[['year_o', 'month_o', 'subvol_o', 'ndense', 'density_o']]
     df_out = df_out.dropna(subset=['ndense'])
@@ -892,31 +949,59 @@ def density_histogram(df, ymax=None, plot=False, ax1=None, ax2=None, save=False)
             ax1 = ax[0]
             ax2 = ax[1]
         # Use the centers and center-aligned bars for ndense
-        ax1.plot(vol.ndense_cent, vol.norm_vol,  linewidth=0.5)
-        ax1.set_title("Distribution by ndense")
+        ax1.plot(vol.ndense_cent, vol.norm_vol/1e16,  linewidth=0.8,c=colour,label=label)
+        ax1.set_title("Density at seeding")
         
         # Use the centers for density_o, shifting by 1000 as required
-        ax2.plot(vol_o.density_o_cent + 1000, vol_o.norm_vol, c='red')
-        ax2.set_title("Distribution by density_o")
+        ax2.plot(vol_o.density_o_cent + 1000, vol_o.norm_vol/1e16,linewidth=0.8, c=colour,label=label)
+        ax2.set_title("Density at ventilation")
         
         ax1.set_xlim(1024, 1028)
-        ax1.set_xlabel("ndense")
-        ax2.set_xlabel("density_o")
-        ax1.set_ylabel("Volume (m³)")
+        ax2.set_xlim(1024, 1028)
+        ax1.set_xlabel("Neutral density (kg/m³)")
+        ax2.set_xlabel("Potential density (kg/m³)")
+        ax1.set_ylabel(r"Volume (10$^{16}$ m³)")
 
-        for axis in [ax1, ax2]:
-            xticks = axis.get_xticks()
-            xticklabels = axis.get_xticklabels()
-            axis.set_xticks(xticks[::2])
-            axis.set_xticklabels(xticklabels[::2])
         if ymax:
             ax1.set_ylim(0, ymax)
             ax2.set_ylim(0, ymax)
+        
         if save:
             plt.savefig(f'../fig/combined_analysis/Densities/whole_domain', bbox_inches='tight', pad_inches=0.5,dpi=400)
     print(len(vol))
     return vol,vol_o
 
+def density_contours(df_vent):
+    cols= ['purple','orange','green','red']
+    df_early= df_vent[(df_vent['year_o'] == 1982) | ((df_vent['year_o'] == 1983) & (df_vent['month_o'] < 8))]
+    df_late = df_vent[~((df_vent['year_o'] == 1982) | ((df_vent['year_o'] == 1983) & (df_vent['month_o'] < 8)))]
+    fig,ax = plt.subplots(1,2,figsize=(12, 6), dpi=400,sharey=True)
+    density_histogram(df_early,plot=True,ax1=ax[0],ax2=ax[1],save=False,colour='blue',label = 'Re-entrained')
+    years= [1991, 1996, 2012]
+    for i,year in enumerate(years):
+        print(year)
+        if i!=0:
+            df_filt = df_late[(df_late['year_o'] <= year)&(df_late['year_o'] > years[i-1])]
+            year_min= years[i-1]+1
+        else:
+            df_filt = df_late[(df_late['year_o'] <= year)]
+            year_min= 1983
+        density_histogram(df_filt,plot=True,ax1=ax[0],ax2=ax[1],save=False,colour=cols[i],label=f'{year_min}-{year}')
+    ax[0].legend()
+    ax[1].legend()
+    ax[0].grid()
+    ax[1].grid()
+
+    for axis in [ax[0], ax[1]]:
+        xticks = axis.get_xticks()
+        xticklabels = axis.get_xticklabels()
+        axis.set_xticks(xticks[::2])
+        axis.set_xticklabels(xticklabels[::2])
+
+        axis.set_ylim(0,8.5)
+    plt.savefig(f'../fig/combined_analysis/Densities/contours.png',bbox_inches='tight', pad_inches=0.5,dpi=600)
+    print('saved')
+#density_contours(df_vent)
 #for every of ASC, gyre dense, domain make:
 # Time evolving in & out
 # T&S transformation
@@ -939,24 +1024,33 @@ def plot_SW_location(ax,water_masses):
     
 
 
-def T_S_transform_i(df_vent, fig=None, ax=None, save=False,plot=False):
+def T_S_transform_i(df_vent, fig=None, ax=None, save=False,plot=True,temp_range=True):
     # Filter salinity range
     sal_range = [32, 37]
-    temp_range = [-2,10]
+    if temp_range:
+        temp_range = [-2,10]
+    else:
+        try:
+            temp_range = [df_vent['temp_i'].min().values, df_vent['temp_i'].max().values]
+        except AttributeError:
+            temp_range = [df_vent['temp_i'].min().compute(), df_vent['temp_i'].max().compute()]
+        print(temp_range)
 
-    df_vent = df_vent[(df_vent['sal_i']>32) & (df_vent['sal_i']<37)]
+    df_vent_short = df_vent[(df_vent['sal_i']>32) & (df_vent['sal_i']<37)]
     
+    print(len(df_vent_short))
+  
     
     
     # Create T-S bins and sum volumes
     H, xedges, yedges = np.histogram2d(
-        df_vent['sal_i'], 
-        df_vent['temp_i'],
+        df_vent_short['sal_i'], 
+        df_vent_short['temp_i'],
         range=[sal_range, temp_range],
         bins=(100,100),
-        weights=df_vent['subvol_i']
+        weights=df_vent_short['subvol_i']
     )
-    
+    print(H)
     # Plot with pcolormesh
     if plot:
         if not fig:
@@ -980,14 +1074,17 @@ def T_S_transform_i(df_vent, fig=None, ax=None, save=False,plot=False):
         plt.savefig('../fig/Densities/Phase_space_i.png')
     return H,xedges, yedges
 
-def T_S_transform_o(df_vent, fig=None, ax=None, save=False,plot=True):
+def T_S_transform_o(df_vent, fig=None, ax=None, save=False,plot=True,temp_range=True):
     # Filter salinity range
     sal_range = [32, 37]
-    temp_range = [-2,10]
+    if temp_range:
+        temp_range = [-2,10]
+    else:
+        temp_range = [df_vent['temp_i'].min().compute(), df_vent['temp_i'].max().compute()]
+    
     df_vent = df_vent[(df_vent['sal_o']>32) & (df_vent['sal_o']<37)]
     
    
-    
     # Create T-S bins and sum volumes
     H, xedges, yedges = np.histogram2d(
         df_vent['sal_o'], 
@@ -1025,8 +1122,8 @@ def T_S_transform(df_vent,vmin=None,vmax=None,name=None):
     ax3 = ax[2]
 
 
-    T_S_transform_i(df_vent,fig=fig,ax=ax1)
-    T_S_transform_o(df_vent,fig=fig,ax=ax2)
+    T_S_transform_i(df_vent,fig=fig,ax=ax1,temp_range=False)
+    T_S_transform_o(df_vent,fig=fig,ax=ax2,temp_range=False)
     
     sal_range = [32, 37]
     temp_range = [df_vent['temp_i'].min().compute(), df_vent['temp_i'].max().compute()]
@@ -1060,7 +1157,8 @@ def T_S_transform(df_vent,vmin=None,vmax=None,name=None):
     cax3 = ax[2].pcolormesh(X, Y, diff.T,
                         norm=Normalize(vmin=vmin, vmax=vmax),
                         cmap='bwr')
-    fig.colorbar(cax3, ax=ax[2])
+    cbar = fig.colorbar(cax3, ax=ax[2])
+    cbar.set_label('Volume (m³)')
 
     for axis in ax:
         axis.set_xlabel('Salinity (psu)')
@@ -1072,24 +1170,30 @@ def T_S_transform(df_vent,vmin=None,vmax=None,name=None):
     fig.subplots_adjust(wspace=0.3)
 
     if not name:
-        plt.savefig('../fig/combined_analysis/Densities/Domain_transformation.png')
+        plt.savefig('../fig/combined_analysis/Densities/Domain_transformation.png',bbox_inches='tight',pad_inches=0.5,dpi=400)
     else:
-        plt.savefig(f'../fig/combined_analysis/Densities/{name}.png')
-
+        plt.savefig(f'../fig/combined_analysis/Densities/{name}.png',bbox_inches='tight',pad_inches=0.5,dpi=400)
+#T_S_transform(df_vent)
 def T_S_transform_pathways(df_vent):
     move_weddell, move_ross = generate_move(df_vent)
     ASC= separate_ASC(move_weddell)
-    ACC_weddell= df_vent[~df_vent['ntrajc'].isin(ASC['ntrajc'].compute())]
-    ACC_ross= move_ross
-
+    ASC_traj = set(ASC['ntrajc'].compute())
+    ACC_weddell = move_weddell[~move_weddell['ntrajc'].isin(ASC_traj)].compute()
+    print('hmm')
+    print(len(ACC_weddell))
+    print(len(ASC))
+    print(len(move_ross))
+    
+  
     fig,ax = plt.subplots(1, 3, figsize=(20, 10), sharex=True, dpi=400)
     titles = ['ASC','ACC into Weddell','ACC into Ross']
-    for i,df in enumerate([ASC,ACC_weddell,ACC_ross]):
+    for i,df in enumerate([ASC,ACC_weddell,move_ross]):
         print(i)
+        print(len(df))
 
     #for each find H_i, H_o, diff
         H_i,x_edges,y_edges= T_S_transform_i(df,fig=None,ax=None,plot=False)
-        H_o,_,y_edges2= T_S_transform_o(df,fig=None,ax=None,plot=False)
+        H_o,_,_= T_S_transform_o(df,fig=None,ax=None,plot=False)
 
       
         print(np.sum(H_i))
@@ -1101,7 +1205,8 @@ def T_S_transform_pathways(df_vent):
         vmax = np.max(np.abs(diff))
         vmin = -vmax
         cax=ax[i].pcolormesh(X, Y, diff.T,norm=Normalize(vmin=vmin, vmax=vmax),cmap='bwr')
-        fig.colorbar(cax, ax=ax[i])
+        cbar=fig.colorbar(cax, ax=ax[i])
+        cbar.set_label('Volume (m³)')
         ax[i].set_xlabel('Salinity (psu)')
         ax[i].set_ylabel(r'Temperature ($^\circ$C)')
         ax[i].set_title(titles[i])
@@ -1369,6 +1474,44 @@ def plot_vent_varability():
 # plot_vent_varability()
 print('normalised ventilation')
 
+def whole_domain_vent_variability(df_vent):
+
+    
+    #normalise
+    #df_vent=df_vent[df_vent['year_o']>1985]
+    df_norm=normalise_timeseries(df_vent,)
+    df_norm = df_norm[df_norm['year_o']>1983]
+    print(df_norm.head(20))
+    df_basin_norm= df_vent.merge(df_norm, on='year_o', how='right')
+    
+    df_basin_norm['norm_subvol'] = (df_basin_norm['subvol_o'] / df_basin_norm['norm_fact'])
+    #df_basin_norm['norm_subvol'] = df_basin_norm['norm_subvol'] - df_basin_norm['norm_subvol'].mean()
+    df_basin_norm=df_basin_norm.drop(columns=['subvol_o'])
+    df_basin_norm=df_basin_norm.rename(columns={'norm_subvol':'subvol_o'})
+    #group by year
+    df_basin_norm_group = df_basin_norm.groupby(['year_o', 'month_o'])
+    vol = df_basin_norm_group.sum()["subvol_o"].compute()
+    vol = vol.reset_index()
+    vol = vol.loc[vol.groupby('year_o')['subvol_o'].idxmax()]
+    vol = vol.sort_values('year_o').reset_index(drop=True)
+    #pd_vol = vol.compute()
+    print(vol)
+    print(type(vol))
+    vol.to_csv('../data/normalised_whole_domain_ventilation.csv')
+#whole_domain_vent_variability(df_vent)
+def plot_var_whole_vent():
+    df = pd.read_csv('../data/normalised_whole_domain_ventilation.csv')
+    #normalise to std
+    df['subvol_o'] = ((df['subvol_o'] )-df['subvol_o'].mean()) / df['subvol_o'].std()
+    fig,ax = plt.subplots(1,1,figsize=(12, 6), dpi=400)
+    ax.plot(df['year_o'],df['subvol_o'])
+    ax.set_title('Variability in Ventilation')
+    ax.set_xlabel('Year of ventilation')
+    ax.set_ylabel(r'Deviation from mean ($\sigma$)')
+    plt.savefig('../fig/combined_analysis/Variability/normalised_whole_domain_ventilation.png')
+    print('plot')
+plot_var_whole_vent()
+
 
 def plot_MLD_SAM_regression(df_vent):
     #basins=['pacific']
@@ -1472,6 +1615,7 @@ def mld_anomaly(ds_domain,year_eval,plot=False):
     if plot:
         fig,ax = plt.subplots(1,1,figsize=(12, 6), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
         plt_cust.plot_i(fig,ax, ds_domain, df_vent,'mldr10_1',vmin=-200,vmax=200,log=False,da_vol_xy=ds_mld_anomaly,normalise=False,cmp='bwr')
+
         plt.savefig(f'../fig/combined_analysis/Variability/mld_anomaly_{year_eval}.png')
     return ds_mld_anomaly
 
@@ -1481,8 +1625,8 @@ def mld_anomaly(ds_domain,year_eval,plot=False):
     
 
 def average_positive_SAM():
-    #years=[1984,1989,1993,1999,2005,2008]
-    years=[1991,1997,2002,2005,2009]
+    years=[1984,1989,1993,2004,2008,2010]
+    #years=[1991,1997,2002,2005,2009]
     #years=[1982,1983,1985,1989,1993,1995,1998,1999,2001,2004,2006,2008,2010,2011,2012] #marshall indexes >0
 
     ds_mld= xr.Dataset(
@@ -1505,9 +1649,16 @@ def average_positive_SAM():
 
     ds_mld_mean = ds_mld.mean(dim='time').compute().mld_anomaly
     #now plot
-    fig,ax = plt.subplots(1,1,figsize=(12, 6), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()})
-    plt_cust.plot_i(fig,ax, ds_domain, df_vent,'mldr10_1',vmin=-200,vmax=200,log=False,da_vol_xy=ds_mld_mean,normalise=False,cmp='bwr')
-    plt.savefig(f'../fig/combined_analysis/Variability/mld_anomaly_negative_SAM.png')
+
+    fig,ax = plt.subplots(1,1,figsize=(12, 6), dpi=400, subplot_kw={'projection': ccrs.SouthPolarStereo()},constrained_layout=True)
+    plt_cust.add_grid(ax)
+    plt_cust.circe_bound(ax)
+    cax=plt_cust.plot_i(fig,ax, ds_domain, df_vent,'mldr10_1',vmin=-200,vmax=200,log=False,da_vol_xy=ds_mld_mean,normalise=False,cbar=False,cmp='bwr')
+    divider = make_axes_locatable(ax)
+    cax_cb = divider.append_axes("right", size="5%", pad=1, axes_class=plt.Axes)
+    cbar=fig.colorbar(cax,cax=cax_cb,pad=0.5)
+    cbar.set_label(r'Mixed layer depth anomaly (m)')
+    plt.savefig(f'../fig/combined_analysis/Variability/mld_anomaly_positive_SAM.png',bbox_inches='tight',pad_inches=0.5,dpi=400)
 #average_positive_SAM()
 
 
@@ -1550,9 +1701,9 @@ def calculate_vel_by_basin(ds_domain):
             indexes = basins_index[basin]
            
             if indexes[1]>indexes[0]:
-                ds_mld_year_basin = ds_mld_year.where((ds_domain['x']>indexes[0])&(ds_domain['x']<indexes[1]), drop=True)
+                ds_mld_year_basin = vel_anomaly.where((ds_domain['x']>indexes[0])&(ds_domain['x']<indexes[1]), drop=True)
             else:
-                ds_mld_year_basin = ds_mld_year.where((ds_domain['x']<indexes[0])|(ds_domain['x']>indexes[1]), drop=True)
+                ds_mld_year_basin = vel_anomaly.where((ds_domain['x']<indexes[0])|(ds_domain['x']>indexes[1]), drop=True)
             print(ds_mld_year_basin.dims)
             MLD_by_basin[basin].append(ds_mld_year_basin.mean().values)
             
@@ -1620,22 +1771,152 @@ def plot_var():
     df_vel= pd.read_csv('../data/velocity_anomaly_basins.csv')
 
     df_norm_vent= df_norm_vent[df_norm_vent['year']>1983]
+    
     df_norm_mld= df_norm_mld[df_norm_mld['year']>1983]
     df_vel= df_vel[df_vel['year']>1983]
-    fig,ax = plt.subplots(3,1,figsize=(12, 6), dpi=400)
+
+    #normalise
+    for basin in basins:
+        df_norm_vent[basin]= df_norm_vent[basin]-df_norm_vent[basin].mean()
+        df_norm_vent[basin] = (df_norm_vent[basin]/df_norm_vent[basin].std())
+        df_norm_mld[basin] = (df_norm_mld[basin]/df_norm_mld[basin].std())
+        df_vel[basin] = (df_vel[basin]/df_vel[basin].std())
+
+    fig,ax = plt.subplots(3,1,figsize=(18, 12), dpi=400)
+    fig.tight_layout()
+    fig.subplots_adjust(hspace=0.5)
+    titles= ['Atlantic sector','Indian sector','Pacific sector']
     for i,basin in enumerate(basins):
-        ax[i].plot(df_norm_vent['year'],(df_norm_vent[basin]-df_norm_vent[basin].mean())*100)
-        ax[i].plot(df_norm_mld['year'],df_norm_mld[basin])
-        ax[i].plot(df_vel['year'],df_vel[basin]*1e8)
-        ax[i].set_title(f'{basin}')
+        ax[i].plot(df_norm_vent['year'],(df_norm_vent[basin]),label='Ventilation')
+        ax[i].plot(df_norm_mld['year'],df_norm_mld[basin],label='MLD')
+        ax[i].legend()
+        #ax[i].plot(df_vel['year'],df_vel[basin])
+        ax[i].set_title(f'{titles[i]}')
         
-        ax[i].set_ylabel('Normalised ventilation')
-        ax[i].set_xlabel('Year')
+        ax[i].set_ylabel(r'Deviation from mean ($\sigma$)')
+        ax[i].set_xlabel('Year of ventilation')
         reg = linregress(df_vel[basin], df_norm_vent[basin])
+        print(reg)
         print(f'{basin} slope: {reg.slope}')
         print(f'{basin} intercept: {reg.intercept}')
-        print(f'{basin} rvalue: {reg.rvalue}')
-        print( np.cov(df_norm_mld[basin], df_norm_vent[basin])[0][1])
-    plt.savefig('../fig/combined_analysis/Variability/normalised_ventilation.png')
+        print(f'{basin} R^2: {reg.rvalue**2}')
+        #print( np.cov(df_norm_mld[basin], df_norm_vent[basin])[0][1])
 
-#plot_var()
+        #match positive to negative y lim
+        ax[i].set_ylim(-2.7,2.7)
+    plt.savefig('../fig/combined_analysis/Variability/normalised_ventilation.png')
+    print('saved')
+plot_var()
+
+
+'''
+comparisson to backwards exp
+'''
+
+def cdf_longitude(df_vent_fwd,df_vent_bwd):
+    #filter out re-entrainment (after 1st August 1983)
+    df_vent_fwd = df_vent_fwd[~((df_vent_fwd['year_o'] == 1982)|((df_vent_fwd['year_o'] == 1983)&(df_vent_fwd['month_o'] <8)))]
+    df_vent_bwd = df_vent_bwd[~((df_vent_bwd['year_o']==2012)&(df_vent_bwd['month_o']>7))]
+    vol_fwd = longitudinal_variations(ds_domain,df_vent_fwd)
+    vol_bwd = longitudinal_variations(ds_domain,df_vent_bwd)
+    #now plot
+    fig,ax = plt.subplots(1,2,figsize=(12, 6),sharey=True,sharex=True, dpi=400)
+    #plot fwd
+    fwd_sum= vol_fwd['subvol_o'].sum()
+    bwd_sum= vol_bwd['subvol_o'].sum()
+    ax[0].grid()
+    ax[1].grid()
+    ax[0].sharey(ax[1])
+
+    ax[0].plot(vol_fwd['long'],vol_fwd['subvol_cdf'])
+    ax[1].plot(vol_bwd['long'],vol_bwd['subvol_cdf'])
+    fwd_str = f"${fwd_sum:.1e}".replace("e", r" \times 10^{").replace("+", "") + "}$"
+    bwd_str = f"${bwd_sum:.1e}".replace("e", r" \times 10^{").replace("+", "") + "}$"
+    ax[0].set_title(f'Upwelling Volumes - Total {fwd_str} m³')
+    ax[1].set_title(f'Subducting Volumes - Total {bwd_str} m³')
+    
+
+    ax[0].set_ylabel('Cumulative distribution',c='blue')
+    ax[0].tick_params(axis='y', labelcolor='blue')  # Hide labels but keep ticks
+    
+    
+
+    for axis in [ax[0],ax[1]]:
+       
+        xticks = axis.get_xticks()
+        xticks_labels = []
+        for tick in xticks:
+            if tick < 0:
+                xticks_labels.append(f"{int(abs(tick))}°W")
+            else:
+                xticks_labels.append(f"{int(tick)} °E")
+        axis.set_xlim(-180,180)
+        axis.set_xticks(xticks)
+        axis.set_xticklabels(xticks_labels)
+        axis.set_xlabel('Longitude of ventilation')
+        axis.set_xlim(-180,180)
+
+
+    ax1=ax[0].twinx()
+    ax2=ax[1].twinx()
+    
+    ax2.sharey(ax1)
+    ax1.tick_params(axis='y', labelcolor='none')  # Hide labels but keep ticks
+    ax2.tick_params(axis='y', labelcolor='green')  # Hide labels but keep ticks
+
+
+    ax2.set_ylabel(r'Volume ventilated (10$^{14}$ m³)',c='green')
+
+
+
+
+    ax1.plot(vol_fwd['long'],vol_fwd['subvol_o']/1e14,alpha=0.5,c='green')
+    ax2.plot(vol_bwd['long'],vol_bwd['subvol_o']/1e14,alpha=0.5,c='green')
+    ax[0].set_ylim(0,1.05)
+    #set y_ticks to green
+
+    
+
+
+
+
+
+    plt.savefig('../fig/combined_analysis/longitudinal_variations.png',bbox_inches='tight',pad_inches=0.5,dpi=400)
+    
+    
+
+
+
+
+print('final_start')
+def final_report_figs():
+    #title_page(ds_domain)
+    #print('a')
+    #so_dynamics(df_vent)
+    #background_model_temporal()
+    # print('b')
+    # spatial_plot_both()
+    # print('c')
+    #plot_topography_effects()
+    # print('d')
+    #seed_separate()
+    # print('e')
+    # gyre_vent()  #ross and weddell
+    # print('f')
+    #boxplot_all(df_vent)
+
+    # density_contours(df_vent)
+    # print('g')
+    # T_S_transform(df_vent) #error in here
+    # print('h')
+    # T_S_transform_pathways(df_vent)
+    # print('i')
+    #average_positive_SAM()
+    # print('j')
+    #cdf_longitude(df_vent,df_vent_bwd)
+    pass
+
+    
+
+
+#final_report_figs()
